@@ -4,53 +4,152 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Wallet, Clock, CheckCircle, TrendingUp, ArrowLeft } from "lucide-react";
+import { Users, Wallet, Clock, CheckCircle, TrendingUp, ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
-// todo: remove mock functionality
-const mockPendingRequests = [
-  { id: '1', employeeName: 'أحمد محمد', employeeId: 'EMP001', amount: 1500, beneficiary: 'self' as const, requestDate: '2024-12-20', hasAttachment: true },
-  { id: '2', employeeName: 'سارة أحمد', employeeId: 'EMP002', amount: 800, beneficiary: 'family' as const, requestDate: '2024-12-19', hasAttachment: true },
-  { id: '3', employeeName: 'محمد علي', employeeId: 'EMP003', amount: 2000, beneficiary: 'self' as const, requestDate: '2024-12-18', hasAttachment: false },
-];
+interface Stats {
+  totalEmployees: number;
+  totalBalance: number;
+  pendingRequests: number;
+  approvedThisMonth: number;
+}
 
-// todo: remove mock functionality
-const chartData = [
-  { month: 'يناير', deposits: 15000, withdrawals: 8000 },
-  { month: 'فبراير', deposits: 18000, withdrawals: 10000 },
-  { month: 'مارس', deposits: 16000, withdrawals: 12000 },
-  { month: 'أبريل', deposits: 20000, withdrawals: 9000 },
-  { month: 'مايو', deposits: 22000, withdrawals: 11000 },
-  { month: 'يونيو', deposits: 19000, withdrawals: 13000 },
-];
+interface PendingRequest {
+  id: string;
+  employeeName: string;
+  employeeId: string;
+  amount: number;
+  beneficiary: "self" | "family";
+  requestDate: string;
+  hasAttachment: boolean;
+  notes?: string;
+  userId: string;
+  attachmentPath?: string;
+}
 
-// todo: remove mock functionality
-const recentActivities = [
-  { id: '1', action: 'موافقة على سحب', employee: 'أحمد محمد', amount: 500, time: 'منذ 5 دقائق' },
-  { id: '2', action: 'إضافة رصيد', employee: 'سارة أحمد', amount: 2000, time: 'منذ ساعة' },
-  { id: '3', action: 'رفض طلب', employee: 'محمد علي', amount: 3000, time: 'منذ ساعتين' },
-  { id: '4', action: 'موظف جديد', employee: 'فاطمة حسن', amount: 0, time: 'منذ 3 ساعات' },
-];
+interface Transaction {
+  id: string;
+  userId: string;
+  type: string;
+  amount: number;
+  createdAt: string;
+  description?: string;
+}
 
 export default function ManagerDashboard() {
+  const { toast } = useToast();
+
+  const { data: stats, isLoading: statsLoading } = useQuery<Stats>({
+    queryKey: ["/api/stats"],
+    refetchInterval: 30000,
+  });
+
+  const { data: pendingRequests, isLoading: pendingLoading } = useQuery<PendingRequest[]>({
+    queryKey: ["/api/withdrawal-requests/pending"],
+    refetchInterval: 30000,
+  });
+
+  const { data: allTransactions } = useQuery<Transaction[]>({
+    queryKey: ["/api/transactions/all"],
+    refetchInterval: 60000,
+  });
+
+  const processRequestMutation = useMutation({
+    mutationFn: async ({ id, action, notes, modifiedAmount }: { id: string; action: string; notes?: string; modifiedAmount?: number }) => {
+      const res = await apiRequest("POST", `/api/withdrawal-requests/${id}/process`, { action, notes, modifiedAmount });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/withdrawal-requests/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions/all"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleApprove = (id: string, notes: string) => {
-    console.log('Approved:', id, notes);
+    processRequestMutation.mutate(
+      { id, action: "approve", notes },
+      {
+        onSuccess: () => {
+          toast({
+            title: "تمت الموافقة",
+            description: "تمت الموافقة على الطلب بنجاح",
+          });
+        },
+      }
+    );
   };
 
   const handleReject = (id: string, reason: string) => {
-    console.log('Rejected:', id, reason);
+    processRequestMutation.mutate(
+      { id, action: "reject", notes: reason },
+      {
+        onSuccess: () => {
+          toast({
+            title: "تم الرفض",
+            description: "تم رفض الطلب",
+            variant: "destructive",
+          });
+        },
+      }
+    );
   };
 
   const handleModify = (id: string, amount: number, notes: string) => {
-    console.log('Modified:', id, amount, notes);
+    processRequestMutation.mutate(
+      { id, action: "modify", notes, modifiedAmount: amount },
+      {
+        onSuccess: () => {
+          toast({
+            title: "تم التعديل",
+            description: "تم تعديل المبلغ والموافقة على الطلب",
+          });
+        },
+      }
+    );
   };
+
+  const chartData = [
+    { month: "يناير", deposits: 15000, withdrawals: 8000 },
+    { month: "فبراير", deposits: 18000, withdrawals: 10000 },
+    { month: "مارس", deposits: 16000, withdrawals: 12000 },
+    { month: "أبريل", deposits: 20000, withdrawals: 9000 },
+    { month: "مايو", deposits: 22000, withdrawals: 11000 },
+    { month: "يونيو", deposits: 19000, withdrawals: 13000 },
+  ];
+
+  const recentActivities = allTransactions?.slice(0, 5).map((t) => ({
+    id: t.id,
+    action: t.type === "withdrawal" ? "سحب رصيد" : t.type === "adjustment" ? "تعديل رصيد" : t.type === "service_fee" ? "رسوم خدمة" : "إيداع",
+    employee: t.description || "موظف",
+    amount: t.amount,
+    time: new Date(t.createdAt).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit" }),
+  })) || [];
+
+  if (statsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
         <div>
-          <h2 className="text-2xl font-bold mb-1">لوحة تحكم المدير</h2>
+          <h2 className="text-2xl font-bold mb-1" data-testid="text-dashboard-title">لوحة تحكم المدير</h2>
           <p className="text-muted-foreground">نظرة عامة على النظام</p>
         </div>
         <div className="flex gap-2">
@@ -63,35 +162,35 @@ export default function ManagerDashboard() {
           <Link href="/approvals">
             <Button data-testid="link-approvals">
               الطلبات المعلقة
-              <Badge variant="secondary" className="mr-2">{mockPendingRequests.length}</Badge>
+              <Badge variant="secondary" className="mr-2">{pendingRequests?.length || 0}</Badge>
             </Button>
           </Link>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard 
+        <StatCard
           title="إجمالي الموظفين"
-          value={125}
+          value={stats?.totalEmployees || 0}
           icon={Users}
           description="موظف نشط"
           variant="primary"
         />
-        <StatCard 
+        <StatCard
           title="إجمالي الأرصدة"
-          value="150,000 ر.س"
+          value={`${(stats?.totalBalance || 0).toLocaleString("ar-SA")} ر.س`}
           icon={Wallet}
           trend={{ value: 12, isPositive: true }}
         />
-        <StatCard 
+        <StatCard
           title="طلبات معلقة"
-          value={mockPendingRequests.length}
+          value={stats?.pendingRequests || 0}
           icon={Clock}
           variant="warning"
         />
-        <StatCard 
+        <StatCard
           title="طلبات هذا الشهر"
-          value={45}
+          value={stats?.approvedThisMonth || 0}
           icon={CheckCircle}
           variant="success"
         />
@@ -109,11 +208,11 @@ export default function ManagerDashboard() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="month" className="text-xs" />
                 <YAxis className="text-xs" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '6px'
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "6px",
                   }}
                 />
                 <Bar dataKey="deposits" name="إيداعات" fill="hsl(221 83% 53%)" radius={[4, 4, 0, 0]} />
@@ -130,21 +229,23 @@ export default function ManagerDashboard() {
           <CardContent>
             <ScrollArea className="h-[280px]">
               <div className="space-y-4">
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3 pb-3 border-b last:border-0">
-                    <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{activity.action}</p>
-                      <p className="text-xs text-muted-foreground">{activity.employee}</p>
-                      {activity.amount > 0 && (
-                        <p className="text-xs text-primary font-medium">
-                          {activity.amount.toLocaleString('ar-SA')} ر.س
-                        </p>
-                      )}
+                {recentActivities.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">لا توجد نشاطات</p>
+                ) : (
+                  recentActivities.map((activity) => (
+                    <div key={activity.id} className="flex items-start gap-3 pb-3 border-b last:border-0">
+                      <div className="h-2 w-2 rounded-full bg-primary mt-2" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{activity.action}</p>
+                        <p className="text-xs text-muted-foreground">{activity.employee}</p>
+                        {activity.amount > 0 && (
+                          <p className="text-xs text-primary font-medium">{activity.amount.toLocaleString("ar-SA")} ر.س</p>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">{activity.time}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">{activity.time}</span>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </ScrollArea>
           </CardContent>
@@ -162,17 +263,34 @@ export default function ManagerDashboard() {
           </Link>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {mockPendingRequests.slice(0, 3).map((request) => (
-              <ApprovalCard
-                key={request.id}
-                request={request}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                onModify={handleModify}
-              />
-            ))}
-          </div>
+          {pendingLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : pendingRequests?.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">لا توجد طلبات معلقة</p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {pendingRequests?.slice(0, 3).map((request) => (
+                <ApprovalCard
+                  key={request.id}
+                  request={{
+                    id: request.id,
+                    employeeName: request.employeeName,
+                    employeeId: request.employeeId,
+                    amount: request.amount,
+                    beneficiary: request.beneficiary,
+                    requestDate: new Date(request.requestDate).toISOString().split("T")[0],
+                    hasAttachment: request.hasAttachment,
+                    notes: request.notes,
+                  }}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                  onModify={handleModify}
+                />
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

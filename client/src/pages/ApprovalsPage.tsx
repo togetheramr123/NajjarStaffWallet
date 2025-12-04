@@ -3,57 +3,140 @@ import ApprovalCard from "@/components/ApprovalCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Loader2 } from "lucide-react";
 
-// todo: remove mock functionality
-const mockRequests = {
-  pending: [
-    { id: '1', employeeName: 'أحمد محمد', employeeId: 'EMP001', amount: 1500, beneficiary: 'self' as const, requestDate: '2024-12-20', hasAttachment: true, notes: 'احتاج المبلغ لظروف طارئة' },
-    { id: '2', employeeName: 'سارة أحمد', employeeId: 'EMP002', amount: 800, beneficiary: 'family' as const, requestDate: '2024-12-19', hasAttachment: true },
-    { id: '3', employeeName: 'محمد علي', employeeId: 'EMP003', amount: 2000, beneficiary: 'self' as const, requestDate: '2024-12-18', hasAttachment: true },
-    { id: '4', employeeName: 'فاطمة حسن', employeeId: 'EMP004', amount: 500, beneficiary: 'family' as const, requestDate: '2024-12-17', hasAttachment: true },
-  ],
-  approved: [
-    { id: '5', employeeName: 'عبدالله محمد', employeeId: 'EMP005', amount: 1000, beneficiary: 'self' as const, requestDate: '2024-12-15', hasAttachment: true },
-    { id: '6', employeeName: 'نورة السالم', employeeId: 'EMP006', amount: 600, beneficiary: 'family' as const, requestDate: '2024-12-14', hasAttachment: true },
-  ],
-  rejected: [
-    { id: '7', employeeName: 'خالد الأحمد', employeeId: 'EMP007', amount: 5000, beneficiary: 'self' as const, requestDate: '2024-12-13', hasAttachment: false, notes: 'تجاوز الحد المسموح' },
-  ],
-};
+interface WithdrawalRequest {
+  id: string;
+  userId: string;
+  amount: number;
+  beneficiary: "self" | "family";
+  notes: string | null;
+  attachmentPath: string | null;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  processedBy: string | null;
+  processedAt: string | null;
+  processingNotes: string | null;
+  modifiedAmount: number | null;
+}
+
+interface PendingRequest {
+  id: string;
+  employeeName: string;
+  employeeId: string;
+  amount: number;
+  beneficiary: "self" | "family";
+  requestDate: string;
+  hasAttachment: boolean;
+  notes?: string;
+}
 
 export default function ApprovalsPage() {
-  const [activeTab, setActiveTab] = useState('pending');
+  const [activeTab, setActiveTab] = useState("pending");
   const { toast } = useToast();
 
+  const { data: pendingRequests, isLoading: pendingLoading } = useQuery<PendingRequest[]>({
+    queryKey: ["/api/withdrawal-requests/pending"],
+    refetchInterval: 15000,
+  });
+
+  const { data: allRequests, isLoading: allLoading } = useQuery<WithdrawalRequest[]>({
+    queryKey: ["/api/withdrawal-requests/all"],
+    refetchInterval: 30000,
+  });
+
+  const processRequestMutation = useMutation({
+    mutationFn: async ({ id, action, notes, modifiedAmount }: { id: string; action: string; notes?: string; modifiedAmount?: number }) => {
+      const res = await apiRequest("POST", `/api/withdrawal-requests/${id}/process`, { action, notes, modifiedAmount });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/withdrawal-requests/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/withdrawal-requests/all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleApprove = (id: string, notes: string) => {
-    console.log('Approved:', id, notes);
-    toast({
-      title: "تمت الموافقة",
-      description: "تمت الموافقة على الطلب بنجاح",
-    });
+    processRequestMutation.mutate(
+      { id, action: "approve", notes },
+      {
+        onSuccess: () => {
+          toast({
+            title: "تمت الموافقة",
+            description: "تمت الموافقة على الطلب بنجاح",
+          });
+        },
+      }
+    );
   };
 
   const handleReject = (id: string, reason: string) => {
-    console.log('Rejected:', id, reason);
-    toast({
-      title: "تم الرفض",
-      description: "تم رفض الطلب",
-      variant: "destructive",
-    });
+    processRequestMutation.mutate(
+      { id, action: "reject", notes: reason },
+      {
+        onSuccess: () => {
+          toast({
+            title: "تم الرفض",
+            description: "تم رفض الطلب",
+            variant: "destructive",
+          });
+        },
+      }
+    );
   };
 
   const handleModify = (id: string, amount: number, notes: string) => {
-    console.log('Modified:', id, amount, notes);
-    toast({
-      title: "تم التعديل",
-      description: "تم تعديل المبلغ والموافقة على الطلب",
-    });
+    processRequestMutation.mutate(
+      { id, action: "modify", notes, modifiedAmount: amount },
+      {
+        onSuccess: () => {
+          toast({
+            title: "تم التعديل",
+            description: "تم تعديل المبلغ والموافقة على الطلب",
+          });
+        },
+      }
+    );
   };
+
+  const approvedRequests = allRequests?.filter((r) => r.status === "approved") || [];
+  const rejectedRequests = allRequests?.filter((r) => r.status === "rejected") || [];
+
+  const formatRequestForCard = (request: WithdrawalRequest) => ({
+    id: request.id,
+    employeeName: "موظف",
+    employeeId: request.userId.slice(0, 8),
+    amount: request.modifiedAmount || request.amount,
+    beneficiary: request.beneficiary,
+    requestDate: new Date(request.createdAt).toISOString().split("T")[0],
+    hasAttachment: !!request.attachmentPath,
+    notes: request.notes || undefined,
+  });
+
+  const isLoading = pendingLoading || allLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-1">طلبات السحب</h2>
+        <h2 className="text-2xl font-bold mb-1" data-testid="text-approvals-title">طلبات السحب</h2>
         <p className="text-muted-foreground">مراجعة وإدارة طلبات سحب الموظفين</p>
       </div>
 
@@ -61,29 +144,36 @@ export default function ApprovalsPage() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="pending" className="gap-2" data-testid="tab-pending">
             معلقة
-            <Badge variant="secondary" className="text-xs">{mockRequests.pending.length}</Badge>
+            <Badge variant="secondary" className="text-xs">{pendingRequests?.length || 0}</Badge>
           </TabsTrigger>
           <TabsTrigger value="approved" className="gap-2" data-testid="tab-approved">
             موافق عليها
-            <Badge variant="secondary" className="text-xs">{mockRequests.approved.length}</Badge>
+            <Badge variant="secondary" className="text-xs">{approvedRequests.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="rejected" className="gap-2" data-testid="tab-rejected">
             مرفوضة
-            <Badge variant="secondary" className="text-xs">{mockRequests.rejected.length}</Badge>
+            <Badge variant="secondary" className="text-xs">{rejectedRequests.length}</Badge>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pending" className="mt-6">
-          {mockRequests.pending.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              لا توجد طلبات معلقة
-            </div>
+          {pendingRequests?.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">لا توجد طلبات معلقة</div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {mockRequests.pending.map((request) => (
+              {pendingRequests?.map((request) => (
                 <ApprovalCard
                   key={request.id}
-                  request={request}
+                  request={{
+                    id: request.id,
+                    employeeName: request.employeeName,
+                    employeeId: request.employeeId,
+                    amount: request.amount,
+                    beneficiary: request.beneficiary,
+                    requestDate: new Date(request.requestDate).toISOString().split("T")[0],
+                    hasAttachment: request.hasAttachment,
+                    notes: request.notes,
+                  }}
                   onApprove={handleApprove}
                   onReject={handleReject}
                   onModify={handleModify}
@@ -94,16 +184,14 @@ export default function ApprovalsPage() {
         </TabsContent>
 
         <TabsContent value="approved" className="mt-6">
-          {mockRequests.approved.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              لا توجد طلبات موافق عليها
-            </div>
+          {approvedRequests.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">لا توجد طلبات موافق عليها</div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {mockRequests.approved.map((request) => (
+              {approvedRequests.map((request) => (
                 <ApprovalCard
                   key={request.id}
-                  request={request}
+                  request={formatRequestForCard(request)}
                   onApprove={handleApprove}
                   onReject={handleReject}
                   onModify={handleModify}
@@ -114,16 +202,14 @@ export default function ApprovalsPage() {
         </TabsContent>
 
         <TabsContent value="rejected" className="mt-6">
-          {mockRequests.rejected.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              لا توجد طلبات مرفوضة
-            </div>
+          {rejectedRequests.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">لا توجد طلبات مرفوضة</div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {mockRequests.rejected.map((request) => (
+              {rejectedRequests.map((request) => (
                 <ApprovalCard
                   key={request.id}
-                  request={request}
+                  request={formatRequestForCard(request)}
                   onApprove={handleApprove}
                   onReject={handleReject}
                   onModify={handleModify}

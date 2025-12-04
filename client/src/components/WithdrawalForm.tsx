@@ -59,11 +59,6 @@ export default function WithdrawalForm({ maxAmount, onSubmit, isLoading }: Withd
       attachment: attachment || undefined,
     });
 
-    toast({
-      title: "تم إرسال الطلب",
-      description: "سيتم مراجعة طلبك من قبل الإدارة",
-    });
-
     setAmount('');
     setNotes('');
     setAttachment(null);

@@ -4,50 +4,138 @@ import AddEmployeeDialog from "@/components/AddEmployeeDialog";
 import AdjustBalanceDialog from "@/components/AdjustBalanceDialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
-// todo: remove mock functionality
-const mockEmployees = [
-  { id: '1', name: 'أحمد محمد العلي', employeeNumber: 'EMP001', balance: 5000, role: 'employee' as const, status: 'active' as const, joinDate: '2023-06-15' },
-  { id: '2', name: 'سارة أحمد الخالد', employeeNumber: 'EMP002', balance: 3500, role: 'employee' as const, status: 'active' as const, joinDate: '2023-08-20' },
-  { id: '3', name: 'محمد علي السعيد', employeeNumber: 'EMP003', balance: 7200, role: 'manager' as const, status: 'active' as const, joinDate: '2022-01-10' },
-  { id: '4', name: 'فاطمة حسن النور', employeeNumber: 'EMP004', balance: 2800, role: 'employee' as const, status: 'inactive' as const, joinDate: '2023-11-05' },
-  { id: '5', name: 'عبدالله محمد', employeeNumber: 'EMP005', balance: 4100, role: 'employee' as const, status: 'active' as const, joinDate: '2024-02-15' },
-  { id: '6', name: 'نورة السالم', employeeNumber: 'EMP006', balance: 6000, role: 'employee' as const, status: 'active' as const, joinDate: '2023-09-01' },
-];
+interface Employee {
+  id: string;
+  name: string;
+  employeeNumber: string;
+  balance: number;
+  role: "employee" | "manager";
+  status: "active" | "inactive";
+  createdAt: string;
+}
 
 export default function EmployeesPage() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
   const [adjustDialogOpen, setAdjustDialogOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<typeof mockEmployees[0] | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const { toast } = useToast();
 
-  const filteredEmployees = mockEmployees.filter(emp => {
-    const matchesSearch = emp.name.includes(searchTerm) || emp.employeeNumber.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || emp.status === statusFilter;
-    const matchesRole = roleFilter === 'all' || emp.role === roleFilter;
-    return matchesSearch && matchesStatus && matchesRole;
+  const { data: employees, isLoading } = useQuery<Employee[]>({
+    queryKey: ["/api/employees"],
+    refetchInterval: 30000,
   });
 
-  const handleAddEmployee = (data: { name: string; employeeNumber: string; initialBalance: number; role: 'employee' | 'manager' }) => {
-    console.log('Add employee:', data);
-    // todo: implement actual add logic
+  const createEmployeeMutation = useMutation({
+    mutationFn: async (data: { name: string; employeeNumber: string; username: string; password: string; role: string; initialBalance: number }) => {
+      const res = await apiRequest("POST", "/api/employees", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      toast({
+        title: "تم الإضافة",
+        description: "تمت إضافة الموظف بنجاح",
+      });
+    },
+    onError: (error: Error) => {
+      const message = error.message.includes("400") ? "اسم المستخدم مستخدم بالفعل" : error.message;
+      toast({
+        title: "خطأ",
+        description: message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const adjustBalanceMutation = useMutation({
+    mutationFn: async ({ employeeId, amount, type, reason }: { employeeId: string; amount: number; type: "add" | "subtract"; reason: string }) => {
+      const res = await apiRequest("POST", `/api/employees/${employeeId}/balance`, { amount, type, reason });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      toast({
+        title: "تم التعديل",
+        description: "تم تعديل الرصيد بنجاح",
+      });
+      setAdjustDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "active" | "inactive" }) => {
+      const res = await apiRequest("PATCH", `/api/employees/${id}`, { status });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث حالة الموظف",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const filteredEmployees = employees?.filter((emp) => {
+    const matchesSearch = emp.name.includes(searchTerm) || emp.employeeNumber.includes(searchTerm);
+    const matchesStatus = statusFilter === "all" || emp.status === statusFilter;
+    const matchesRole = roleFilter === "all" || emp.role === roleFilter;
+    return matchesSearch && matchesStatus && matchesRole;
+  }) || [];
+
+  const handleAddEmployee = (data: { name: string; employeeNumber: string; username: string; password: string; initialBalance: number; role: "employee" | "manager" }) => {
+    createEmployeeMutation.mutate(data);
   };
 
-  const handleAdjustBalance = (data: { employeeId: string; amount: number; type: 'add' | 'subtract'; reason: string }) => {
-    console.log('Adjust balance:', data);
-    // todo: implement actual adjust logic
+  const handleAdjustBalance = (data: { employeeId: string; amount: number; type: "add" | "subtract"; reason: string }) => {
+    adjustBalanceMutation.mutate(data);
   };
+
+  const handleToggleStatus = (id: string) => {
+    const emp = employees?.find((e) => e.id === id);
+    if (emp) {
+      const newStatus = emp.status === "active" ? "inactive" : "active";
+      toggleStatusMutation.mutate({ id, status: newStatus });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-2xl font-bold mb-1">إدارة الموظفين</h2>
+          <h2 className="text-2xl font-bold mb-1" data-testid="text-employees-title">إدارة الموظفين</h2>
           <p className="text-muted-foreground">عرض وإدارة جميع الموظفين</p>
         </div>
-        <AddEmployeeDialog onAdd={handleAddEmployee} />
+        <AddEmployeeDialog onAdd={handleAddEmployee} isLoading={createEmployeeMutation.isPending} />
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -85,24 +173,32 @@ export default function EmployeesPage() {
 
       {filteredEmployees.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          لا يوجد موظفين مطابقين للبحث
+          {employees?.length === 0 ? "لا يوجد موظفين مسجلين" : "لا يوجد موظفين مطابقين للبحث"}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredEmployees.map((employee) => (
             <EmployeeCard
               key={employee.id}
-              employee={employee}
-              onView={(id) => console.log('View:', id)}
-              onEdit={(id) => console.log('Edit:', id)}
+              employee={{
+                id: employee.id,
+                name: employee.name,
+                employeeNumber: employee.employeeNumber,
+                balance: employee.balance,
+                role: employee.role,
+                status: employee.status,
+                joinDate: new Date(employee.createdAt).toISOString().split("T")[0],
+              }}
+              onView={(id) => console.log("View:", id)}
+              onEdit={(id) => console.log("Edit:", id)}
               onAdjustBalance={(id) => {
-                const emp = mockEmployees.find(e => e.id === id);
+                const emp = employees?.find((e) => e.id === id);
                 if (emp) {
                   setSelectedEmployee(emp);
                   setAdjustDialogOpen(true);
                 }
               }}
-              onToggleStatus={(id) => console.log('Toggle status:', id)}
+              onToggleStatus={handleToggleStatus}
             />
           ))}
         </div>

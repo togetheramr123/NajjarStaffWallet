@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -11,15 +11,20 @@ interface AddEmployeeDialogProps {
   onAdd: (employee: {
     name: string;
     employeeNumber: string;
+    username: string;
+    password: string;
     initialBalance: number;
     role: 'employee' | 'manager';
   }) => void;
+  isLoading?: boolean;
 }
 
-export default function AddEmployeeDialog({ onAdd }: AddEmployeeDialogProps) {
+export default function AddEmployeeDialog({ onAdd, isLoading }: AddEmployeeDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [employeeNumber, setEmployeeNumber] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
   const [role, setRole] = useState<'employee' | 'manager'>('employee');
   const { toast } = useToast();
@@ -27,7 +32,7 @@ export default function AddEmployeeDialog({ onAdd }: AddEmployeeDialogProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !employeeNumber) {
+    if (!name || !employeeNumber || !username || !password) {
       toast({
         title: "خطأ",
         description: "الرجاء إدخال جميع البيانات المطلوبة",
@@ -36,21 +41,38 @@ export default function AddEmployeeDialog({ onAdd }: AddEmployeeDialogProps) {
       return;
     }
 
+    if (username.length < 3) {
+      toast({
+        title: "خطأ",
+        description: "اسم المستخدم يجب أن يكون 3 أحرف على الأقل",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (password.length < 4) {
+      toast({
+        title: "خطأ",
+        description: "كلمة المرور يجب أن تكون 4 أحرف على الأقل",
+        variant: "destructive",
+      });
+      return;
+    }
+
     onAdd({
       name,
       employeeNumber,
+      username,
+      password,
       initialBalance: parseFloat(initialBalance) || 0,
       role,
-    });
-
-    toast({
-      title: "تم إضافة الموظف",
-      description: `تمت إضافة ${name} بنجاح`,
     });
 
     setOpen(false);
     setName('');
     setEmployeeNumber('');
+    setUsername('');
+    setPassword('');
     setInitialBalance('');
     setRole('employee');
   };
@@ -79,6 +101,7 @@ export default function AddEmployeeDialog({ onAdd }: AddEmployeeDialogProps) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="الاسم الكامل"
+                disabled={isLoading}
                 data-testid="input-employee-name"
               />
             </div>
@@ -89,7 +112,31 @@ export default function AddEmployeeDialog({ onAdd }: AddEmployeeDialogProps) {
                 value={employeeNumber}
                 onChange={(e) => setEmployeeNumber(e.target.value)}
                 placeholder="مثال: EMP001"
+                disabled={isLoading}
                 data-testid="input-employee-number"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="username">اسم المستخدم</Label>
+              <Input
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="اسم المستخدم لتسجيل الدخول"
+                disabled={isLoading}
+                data-testid="input-username"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">كلمة المرور</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="كلمة المرور"
+                disabled={isLoading}
+                data-testid="input-password"
               />
             </div>
             <div className="space-y-2">
@@ -100,12 +147,13 @@ export default function AddEmployeeDialog({ onAdd }: AddEmployeeDialogProps) {
                 value={initialBalance}
                 onChange={(e) => setInitialBalance(e.target.value)}
                 placeholder="0"
+                disabled={isLoading}
                 data-testid="input-initial-balance"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">الصلاحية</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as 'employee' | 'manager')}>
+              <Select value={role} onValueChange={(v) => setRole(v as 'employee' | 'manager')} disabled={isLoading}>
                 <SelectTrigger data-testid="select-role">
                   <SelectValue />
                 </SelectTrigger>
@@ -117,8 +165,15 @@ export default function AddEmployeeDialog({ onAdd }: AddEmployeeDialogProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" data-testid="button-confirm-add">
-              إضافة الموظف
+            <Button type="submit" disabled={isLoading} data-testid="button-confirm-add">
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                  جاري الإضافة...
+                </>
+              ) : (
+                "إضافة الموظف"
+              )}
             </Button>
           </DialogFooter>
         </form>

@@ -1,6 +1,6 @@
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -12,54 +12,80 @@ import EmployeeDashboard from "@/pages/EmployeeDashboard";
 import ManagerDashboard from "@/pages/ManagerDashboard";
 import EmployeesPage from "@/pages/EmployeesPage";
 import ApprovalsPage from "@/pages/ApprovalsPage";
-import { useState, useEffect } from "react";
+import LoginPage from "@/pages/LoginPage";
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { AuthProvider, useAuth, type User } from "@/contexts/AuthContext";
 
-// todo: remove mock functionality - replace with actual auth
-type UserRole = 'employee' | 'manager' | null;
+export { useAuth };
 
-function Router() {
+function Router({ userRole }: { userRole: "employee" | "manager" }) {
+  if (userRole === "manager") {
+    return (
+      <Switch>
+        <Route path="/" component={ManagerDashboard} />
+        <Route path="/manager" component={ManagerDashboard} />
+        <Route path="/employees" component={EmployeesPage} />
+        <Route path="/approvals" component={ApprovalsPage} />
+        <Route path="/operations" component={ManagerDashboard} />
+        <Route path="/reports" component={ManagerDashboard} />
+        <Route path="/settings" component={ManagerDashboard} />
+        <Route component={NotFound} />
+      </Switch>
+    );
+  }
+
   return (
     <Switch>
+      <Route path="/" component={EmployeeDashboard} />
       <Route path="/dashboard" component={EmployeeDashboard} />
       <Route path="/balance" component={EmployeeDashboard} />
       <Route path="/withdraw" component={EmployeeDashboard} />
       <Route path="/transactions" component={EmployeeDashboard} />
-      <Route path="/manager" component={ManagerDashboard} />
-      <Route path="/employees" component={EmployeesPage} />
-      <Route path="/approvals" component={ApprovalsPage} />
-      <Route path="/operations" component={ManagerDashboard} />
-      <Route path="/reports" component={ManagerDashboard} />
-      <Route path="/settings" component={ManagerDashboard} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-function AuthenticatedLayout({ 
-  userRole, 
-  userName, 
-  onLogout 
-}: { 
-  userRole: 'employee' | 'manager';
-  userName: string;
-  onLogout: () => void;
-}) {
-  const [location] = useLocation();
-  
+function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const [location, setLocation] = useLocation();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  const { data: pendingData } = useQuery({
+    queryKey: ["/api/withdrawal-requests/pending"],
+    enabled: user.role === "manager",
+    refetchInterval: 30000,
+  });
+
+  useEffect(() => {
+    if (pendingData && Array.isArray(pendingData)) {
+      setPendingCount(pendingData.length);
+    }
+  }, [pendingData]);
+
+  useEffect(() => {
+    if (location === "/" && user.role === "manager") {
+      setLocation("/manager");
+    } else if (location === "/" && user.role === "employee") {
+      setLocation("/dashboard");
+    }
+  }, [location, user.role, setLocation]);
+
   const getPageTitle = () => {
     const titles: Record<string, string> = {
-      '/dashboard': 'الرئيسية',
-      '/balance': 'رصيدي',
-      '/withdraw': 'طلب سحب',
-      '/transactions': 'سجل المعاملات',
-      '/manager': 'لوحة التحكم',
-      '/employees': 'إدارة الموظفين',
-      '/approvals': 'طلبات السحب',
-      '/operations': 'العمليات المالية',
-      '/reports': 'التقارير',
-      '/settings': 'الإعدادات',
+      "/": user.role === "manager" ? "لوحة التحكم" : "الرئيسية",
+      "/dashboard": "الرئيسية",
+      "/balance": "رصيدي",
+      "/withdraw": "طلب سحب",
+      "/transactions": "سجل المعاملات",
+      "/manager": "لوحة التحكم",
+      "/employees": "إدارة الموظفين",
+      "/approvals": "طلبات السحب",
+      "/operations": "العمليات المالية",
+      "/reports": "التقارير",
+      "/settings": "الإعدادات",
     };
-    return titles[location] || 'نظام الرصيد';
+    return titles[location] || "نظام الرصيد";
   };
 
   const style = {
@@ -67,25 +93,18 @@ function AuthenticatedLayout({
     "--sidebar-width-icon": "3rem",
   };
 
-  // todo: remove mock functionality
-  const pendingCount = userRole === 'manager' ? 4 : 0;
-
   return (
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">
-        <AppSidebar 
-          userRole={userRole}
-          userName={userName}
-          onLogout={onLogout}
-        />
+        <AppSidebar userRole={user.role} userName={user.name} onLogout={onLogout} />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <Header 
+          <Header
             title={getPageTitle()}
             notificationCount={pendingCount}
-            onNotificationClick={() => console.log('Notifications clicked')}
+            onNotificationClick={() => setLocation("/approvals")}
           />
           <main className="flex-1 overflow-auto bg-background">
-            <Router />
+            <Router userRole={user.role} />
           </main>
         </div>
       </div>
@@ -93,47 +112,50 @@ function AuthenticatedLayout({
   );
 }
 
-function App() {
-  const [userRole, setUserRole] = useState<UserRole>(null);
+function AppContent() {
+  const { user, isLoading, logout } = useAuth();
   const [, setLocation] = useLocation();
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      document.documentElement.classList.add('dark');
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "dark") {
+      document.documentElement.classList.add("dark");
     }
   }, []);
 
-  const handleLogin = () => {
-    // todo: remove mock functionality - implement actual login
-    // For demo, we'll show a simple role selector
-    const role = window.confirm('تسجيل الدخول كمدير؟\n\nاضغط "موافق" للدخول كمدير\nاضغط "إلغاء" للدخول كموظف') 
-      ? 'manager' 
-      : 'employee';
-    setUserRole(role);
-    setLocation(role === 'manager' ? '/manager' : '/dashboard');
+  const handleLogout = async () => {
+    await logout();
+    setShowLogin(false);
+    setLocation("/");
   };
 
-  const handleLogout = () => {
-    setUserRole(null);
-    setLocation('/');
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
-  // todo: remove mock functionality
-  const userName = userRole === 'manager' ? 'محمد العلي' : 'أحمد الخالد';
+  if (user) {
+    return <AuthenticatedLayout user={user} onLogout={handleLogout} />;
+  }
 
+  if (showLogin) {
+    return <LoginPage onBack={() => setShowLogin(false)} />;
+  }
+
+  return <WelcomePage onLogin={() => setShowLogin(true)} />;
+}
+
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        {userRole ? (
-          <AuthenticatedLayout 
-            userRole={userRole}
-            userName={userName}
-            onLogout={handleLogout}
-          />
-        ) : (
-          <WelcomePage onLogin={handleLogin} />
-        )}
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
