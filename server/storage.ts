@@ -1,38 +1,231 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { 
+  type User, 
+  type InsertUser, 
+  type Transaction, 
+  type WithdrawalRequest,
+  type ServiceFeeLog,
+  users, 
+  transactions, 
+  withdrawalRequests,
+  serviceFeeLog
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, and, sql } from "drizzle-orm";
+import { hashPassword } from "./auth";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getAllUsers(): Promise<User[]>;
+  updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
+  updateUserBalance(id: string, amount: number): Promise<User | undefined>;
+  
+  getTransactions(userId: string): Promise<Transaction[]>;
+  getAllTransactions(): Promise<Transaction[]>;
+  createTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): Promise<Transaction>;
+  
+  getWithdrawalRequest(id: string): Promise<WithdrawalRequest | undefined>;
+  getWithdrawalRequests(userId?: string): Promise<WithdrawalRequest[]>;
+  getPendingWithdrawalRequests(): Promise<(WithdrawalRequest & { user: User })[]>;
+  createWithdrawalRequest(data: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'status' | 'processedAt' | 'processedBy' | 'processingNotes' | 'modifiedAmount'>): Promise<WithdrawalRequest>;
+  processWithdrawalRequest(id: string, processedBy: string, status: 'approved' | 'rejected', notes?: string, modifiedAmount?: number): Promise<WithdrawalRequest | undefined>;
+  
+  getPendingAmountForUser(userId: string): Promise<number>;
+  
+  getServiceFeeLog(userId: string, month: number, year: number): Promise<ServiceFeeLog | undefined>;
+  createServiceFeeLog(userId: string, amount: number, month: number, year: number): Promise<ServiceFeeLog>;
+  processMonthlyServiceFees(): Promise<number>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const hashedPassword = await hashPassword(insertUser.password);
+    const [user] = await db.insert(users).values({
+      ...insertUser,
+      password: hashedPassword,
+    }).returning();
     return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async updateUser(id: string, data: Partial<User>): Promise<User | undefined> {
+    const [user] = await db.update(users).set(data).where(eq(users.id, id)).returning();
+    return user;
+  }
+
+  async updateUserBalance(id: string, amount: number): Promise<User | undefined> {
+    const [user] = await db.update(users)
+      .set({ balance: sql`${users.balance} + ${amount}` })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async getTransactions(userId: string): Promise<Transaction[]> {
+    return db.select().from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  async getAllTransactions(): Promise<Transaction[]> {
+    return db.select().from(transactions).orderBy(desc(transactions.createdAt));
+  }
+
+  async createTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): Promise<Transaction> {
+    const [transaction] = await db.insert(transactions).values(data).returning();
+    return transaction;
+  }
+
+  async getWithdrawalRequest(id: string): Promise<WithdrawalRequest | undefined> {
+    const [request] = await db.select().from(withdrawalRequests).where(eq(withdrawalRequests.id, id));
+    return request;
+  }
+
+  async getWithdrawalRequests(userId?: string): Promise<WithdrawalRequest[]> {
+    if (userId) {
+      return db.select().from(withdrawalRequests)
+        .where(eq(withdrawalRequests.userId, userId))
+        .orderBy(desc(withdrawalRequests.createdAt));
+    }
+    return db.select().from(withdrawalRequests).orderBy(desc(withdrawalRequests.createdAt));
+  }
+
+  async getPendingWithdrawalRequests(): Promise<(WithdrawalRequest & { user: User })[]> {
+    const results = await db
+      .select({
+        request: withdrawalRequests,
+        user: users,
+      })
+      .from(withdrawalRequests)
+      .innerJoin(users, eq(withdrawalRequests.userId, users.id))
+      .where(eq(withdrawalRequests.status, 'pending'))
+      .orderBy(desc(withdrawalRequests.createdAt));
+    
+    return results.map((r: { request: WithdrawalRequest; user: User }) => ({ ...r.request, user: r.user }));
+  }
+
+  async createWithdrawalRequest(data: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'status' | 'processedAt' | 'processedBy' | 'processingNotes' | 'modifiedAmount'>): Promise<WithdrawalRequest> {
+    const [request] = await db.insert(withdrawalRequests).values({
+      ...data,
+      status: 'pending',
+    }).returning();
+    return request;
+  }
+
+  async processWithdrawalRequest(id: string, processedBy: string, status: 'approved' | 'rejected', notes?: string, modifiedAmount?: number): Promise<WithdrawalRequest | undefined> {
+    const [request] = await db.update(withdrawalRequests)
+      .set({
+        status,
+        processedBy,
+        processedAt: new Date(),
+        processingNotes: notes,
+        modifiedAmount,
+      })
+      .where(eq(withdrawalRequests.id, id))
+      .returning();
+    
+    if (request && status === 'approved') {
+      const finalAmount = modifiedAmount || request.amount;
+      await this.updateUserBalance(request.userId, -finalAmount);
+      
+      await this.createTransaction({
+        userId: request.userId,
+        type: 'withdrawal',
+        amount: finalAmount,
+        beneficiary: request.beneficiary,
+        status: 'approved',
+        description: notes || 'سحب رصيد',
+        attachmentPath: request.attachmentPath,
+        processedBy,
+        processedAt: new Date(),
+        processingNotes: notes || null,
+      });
+    }
+    
+    return request;
+  }
+
+  async getPendingAmountForUser(userId: string): Promise<number> {
+    const pendingRequests = await db.select()
+      .from(withdrawalRequests)
+      .where(and(
+        eq(withdrawalRequests.userId, userId),
+        eq(withdrawalRequests.status, 'pending')
+      ));
+    
+    return pendingRequests.reduce((sum: number, req: WithdrawalRequest) => sum + req.amount, 0);
+  }
+
+  async getServiceFeeLog(userId: string, month: number, year: number): Promise<ServiceFeeLog | undefined> {
+    const [log] = await db.select().from(serviceFeeLog)
+      .where(and(
+        eq(serviceFeeLog.userId, userId),
+        eq(serviceFeeLog.month, month),
+        eq(serviceFeeLog.year, year)
+      ));
+    return log;
+  }
+
+  async createServiceFeeLog(userId: string, amount: number, month: number, year: number): Promise<ServiceFeeLog> {
+    const [log] = await db.insert(serviceFeeLog).values({
+      userId,
+      amount,
+      month,
+      year,
+    }).returning();
+    return log;
+  }
+
+  async processMonthlyServiceFees(): Promise<number> {
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    const feeAmount = 50;
+    
+    const activeUsers = await db.select().from(users)
+      .where(eq(users.status, 'active'));
+    
+    let processedCount = 0;
+    
+    for (const user of activeUsers) {
+      const existingLog = await this.getServiceFeeLog(user.id, month, year);
+      if (existingLog) continue;
+      
+      if (user.balance >= feeAmount) {
+        await this.updateUserBalance(user.id, -feeAmount);
+        await this.createServiceFeeLog(user.id, feeAmount, month, year);
+        await this.createTransaction({
+          userId: user.id,
+          type: 'service_fee',
+          amount: feeAmount,
+          status: 'approved',
+          description: `رسوم الخدمة الشهرية - ${month}/${year}`,
+          beneficiary: null,
+          attachmentPath: null,
+          processedBy: null,
+          processedAt: new Date(),
+          processingNotes: null,
+        });
+        processedCount++;
+      }
+    }
+    
+    return processedCount;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
