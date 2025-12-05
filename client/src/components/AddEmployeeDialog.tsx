@@ -85,15 +85,15 @@ export default function AddEmployeeDialog({ onAdd, isLoading }: AddEmployeeDialo
           إضافة موظف
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>إضافة موظف جديد</DialogTitle>
           <DialogDescription>
             أدخل بيانات الموظف الجديد
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="grid gap-4 py-4 overflow-y-auto flex-1 px-1">
             <div className="space-y-2">
               <Label htmlFor="name">اسم الموظف</Label>
               <Input
@@ -164,15 +164,15 @@ export default function AddEmployeeDialog({ onAdd, isLoading }: AddEmployeeDialo
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button type="submit" disabled={isLoading} data-testid="button-confirm-add">
+          <DialogFooter className="pt-4 border-t mt-2">
+            <Button type="submit" disabled={isLoading} className="w-full sm:w-auto" data-testid="button-confirm-add">
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 ml-2 animate-spin" />
                   جاري الإضافة...
                 </>
               ) : (
-                "إضافة الموظف"
+                "حفظ الموظف"
               )}
             </Button>
           </DialogFooter>
