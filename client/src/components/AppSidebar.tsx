@@ -9,6 +9,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -49,8 +50,15 @@ const managerMenuItems = [
 
 export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarProps) {
   const [location] = useLocation();
+  const { setOpenMobile, isMobile } = useSidebar();
   const menuItems = userRole === 'manager' ? managerMenuItems : employeeMenuItems;
   const initials = userName.split(' ').map(n => n[0]).join('').slice(0, 2);
+
+  const handleMenuClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   return (
     <Sidebar>
@@ -77,6 +85,7 @@ export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarP
                     asChild 
                     isActive={location === item.url}
                     data-testid={`nav-${item.url.slice(1)}`}
+                    onClick={handleMenuClick}
                   >
                     <Link href={item.url}>
                       <item.icon className="h-4 w-4" />
