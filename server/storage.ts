@@ -42,7 +42,7 @@ export interface IStorage {
   getNotifications(userId: string): Promise<Notification[]>;
   getUnreadNotificationsCount(userId: string): Promise<number>;
   createNotification(data: { userId: string; type: 'approved' | 'rejected' | 'modified'; title: string; message: string; amount?: number; remainingBalance?: number }): Promise<Notification>;
-  markNotificationAsRead(id: string): Promise<void>;
+  markNotificationAsRead(id: string, userId: string): Promise<boolean>;
   markAllNotificationsAsRead(userId: string): Promise<void>;
 }
 
@@ -268,10 +268,12 @@ export class DatabaseStorage implements IStorage {
     return notification;
   }
 
-  async markNotificationAsRead(id: string): Promise<void> {
-    await db.update(notifications)
+  async markNotificationAsRead(id: string, userId: string): Promise<boolean> {
+    const result = await db.update(notifications)
       .set({ isRead: true })
-      .where(eq(notifications.id, id));
+      .where(and(eq(notifications.id, id), eq(notifications.userId, userId)))
+      .returning();
+    return result.length > 0;
   }
 
   async markAllNotificationsAsRead(userId: string): Promise<void> {

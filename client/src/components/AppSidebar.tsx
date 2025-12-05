@@ -21,10 +21,12 @@ import {
   ClipboardCheck, 
   Settings,
   LogOut,
-  CreditCard
+  CreditCard,
+  Bell
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import logoImage from "@assets/Screenshot_2025-08-19_143408_1764855126982.png";
+import NotificationsPanel from "./NotificationsPanel";
 
 interface AppSidebarProps {
   userRole: 'employee' | 'manager';
@@ -114,6 +116,9 @@ export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarP
               {userRole === 'manager' ? 'مدير' : 'موظف'}
             </span>
           </div>
+          {userRole === 'employee' && (
+            <NotificationsPanel />
+          )}
         </div>
         <Button 
           variant="ghost" 

@@ -513,7 +513,10 @@ export async function registerRoutes(
 
   app.post("/api/notifications/:id/read", requireAuth, async (req, res) => {
     try {
-      await storage.markNotificationAsRead(req.params.id);
+      const updated = await storage.markNotificationAsRead(req.params.id, req.user!.id);
+      if (!updated) {
+        return res.status(404).json({ message: "الإشعار غير موجود" });
+      }
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "خطأ في تحديث الإشعار" });
