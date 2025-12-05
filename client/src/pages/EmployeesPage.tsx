@@ -2,6 +2,7 @@ import { useState } from "react";
 import EmployeeCard from "@/components/EmployeeCard";
 import AddEmployeeDialog from "@/components/AddEmployeeDialog";
 import AdjustBalanceDialog from "@/components/AdjustBalanceDialog";
+import EditEmployeeDialog from "@/components/EditEmployeeDialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Loader2 } from "lucide-react";
@@ -24,6 +25,7 @@ export default function EmployeesPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [adjustDialogOpen, setAdjustDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const { toast } = useToast();
 
@@ -97,6 +99,28 @@ export default function EmployeesPage() {
     },
   });
 
+  const editEmployeeMutation = useMutation({
+    mutationFn: async ({ id, name, employeeNumber, password, role }: { id: string; name: string; employeeNumber: string; password?: string; role: string }) => {
+      const res = await apiRequest("PATCH", `/api/employees/${id}`, { name, employeeNumber, password, role });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      toast({
+        title: "تم التعديل",
+        description: "تم تعديل بيانات الموظف بنجاح",
+      });
+      setEditDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const filteredEmployees = employees?.filter((emp) => {
     const matchesSearch = emp.name.includes(searchTerm) || emp.employeeNumber.includes(searchTerm);
     const matchesStatus = statusFilter === "all" || emp.status === statusFilter;
@@ -117,6 +141,18 @@ export default function EmployeesPage() {
     if (emp) {
       const newStatus = emp.status === "active" ? "inactive" : "active";
       toggleStatusMutation.mutate({ id, status: newStatus });
+    }
+  };
+
+  const handleEditEmployee = (data: { id: string; name: string; employeeNumber: string; password?: string; role: string }) => {
+    editEmployeeMutation.mutate(data);
+  };
+
+  const openEditDialog = (id: string) => {
+    const emp = employees?.find((e) => e.id === id);
+    if (emp) {
+      setSelectedEmployee(emp);
+      setEditDialogOpen(true);
     }
   };
 
@@ -189,8 +225,8 @@ export default function EmployeesPage() {
                 status: employee.status,
                 joinDate: new Date(employee.createdAt).toISOString().split("T")[0],
               }}
-              onView={(id) => console.log("View:", id)}
-              onEdit={(id) => console.log("Edit:", id)}
+              onView={(id) => openEditDialog(id)}
+              onEdit={(id) => openEditDialog(id)}
               onAdjustBalance={(id) => {
                 const emp = employees?.find((e) => e.id === id);
                 if (emp) {
@@ -214,6 +250,14 @@ export default function EmployeesPage() {
           onAdjust={handleAdjustBalance}
         />
       )}
+
+      <EditEmployeeDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        employee={selectedEmployee}
+        onSave={handleEditEmployee}
+        isLoading={editEmployeeMutation.isPending}
+      />
     </div>
   );
 }

@@ -204,10 +204,10 @@ export async function registerRoutes(
 
   app.patch("/api/employees/:id", requireManager, async (req, res) => {
     const { id } = req.params;
-    const { name, employeeNumber, role, status } = req.body;
+    const { name, employeeNumber, role, status, password } = req.body;
 
     try {
-      const user = await storage.updateUser(id, { name, employeeNumber, role, status });
+      const user = await storage.updateUser(id, { name, employeeNumber, role, status, password });
       if (!user) {
         return res.status(404).json({ message: "الموظف غير موجود" });
       }
@@ -393,8 +393,14 @@ export async function registerRoutes(
         return res.status(400).json({ message: "الطلب تمت معالجته مسبقاً" });
       }
 
+      const employee = await storage.getUser(request.userId);
+      if (!employee) {
+        return res.status(404).json({ message: "الموظف غير موجود" });
+      }
+
       const { action, notes, modifiedAmount } = parsed.data;
       const status = action === "reject" ? "rejected" : "approved";
+      const finalAmount = action === "modify" ? modifiedAmount : request.amount;
       
       const processedRequest = await storage.processWithdrawalRequest(
         id,
@@ -404,7 +410,22 @@ export async function registerRoutes(
         action === "modify" ? modifiedAmount : undefined
       );
 
-      res.json(processedRequest);
+      const updatedEmployee = await storage.getUser(request.userId);
+      
+      res.json({
+        ...processedRequest,
+        receipt: status === "approved" ? {
+          id: processedRequest!.id,
+          employeeName: employee.name,
+          employeeNumber: employee.employeeNumber,
+          amount: finalAmount || request.amount,
+          remainingBalance: updatedEmployee?.balance || 0,
+          beneficiary: request.beneficiary,
+          approvedBy: req.user!.name,
+          approvedAt: new Date().toISOString(),
+          notes: notes || undefined,
+        } : undefined,
+      });
     } catch (error) {
       res.status(500).json({ message: "خطأ في معالجة الطلب" });
     }

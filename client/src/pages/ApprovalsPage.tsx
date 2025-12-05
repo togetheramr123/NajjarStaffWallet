@@ -1,5 +1,6 @@
 import { useState } from "react";
 import ApprovalCard from "@/components/ApprovalCard";
+import WithdrawalReceipt from "@/components/WithdrawalReceipt";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -33,8 +34,22 @@ interface PendingRequest {
   notes?: string;
 }
 
+interface ReceiptData {
+  id: string;
+  employeeName: string;
+  employeeNumber: string;
+  amount: number;
+  remainingBalance: number;
+  beneficiary: string;
+  approvedBy: string;
+  approvedAt: string;
+  notes?: string;
+}
+
 export default function ApprovalsPage() {
   const [activeTab, setActiveTab] = useState("pending");
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const { toast } = useToast();
 
   const { data: pendingRequests, isLoading: pendingLoading } = useQuery<PendingRequest[]>({
@@ -70,11 +85,15 @@ export default function ApprovalsPage() {
     processRequestMutation.mutate(
       { id, action: "approve", notes },
       {
-        onSuccess: () => {
+        onSuccess: (data: { receipt?: ReceiptData }) => {
           toast({
             title: "تمت الموافقة",
             description: "تمت الموافقة على الطلب بنجاح",
           });
+          if (data.receipt) {
+            setReceiptData(data.receipt);
+            setReceiptOpen(true);
+          }
         },
       }
     );
@@ -99,11 +118,15 @@ export default function ApprovalsPage() {
     processRequestMutation.mutate(
       { id, action: "modify", notes, modifiedAmount: amount },
       {
-        onSuccess: () => {
+        onSuccess: (data: { receipt?: ReceiptData }) => {
           toast({
             title: "تم التعديل",
             description: "تم تعديل المبلغ والموافقة على الطلب",
           });
+          if (data.receipt) {
+            setReceiptData(data.receipt);
+            setReceiptOpen(true);
+          }
         },
       }
     );
@@ -219,6 +242,12 @@ export default function ApprovalsPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <WithdrawalReceipt
+        open={receiptOpen}
+        onOpenChange={setReceiptOpen}
+        receipt={receiptData}
+      />
     </div>
   );
 }

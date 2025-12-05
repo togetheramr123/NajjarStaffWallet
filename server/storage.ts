@@ -62,8 +62,14 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(users).orderBy(desc(users.createdAt));
   }
 
-  async updateUser(id: string, data: Partial<User>): Promise<User | undefined> {
-    const [user] = await db.update(users).set(data).where(eq(users.id, id)).returning();
+  async updateUser(id: string, data: Partial<User> & { password?: string }): Promise<User | undefined> {
+    const updateData: Partial<User> = { ...data };
+    
+    if (data.password) {
+      updateData.password = await hashPassword(data.password);
+    }
+    
+    const [user] = await db.update(users).set(updateData).where(eq(users.id, id)).returning();
     return user;
   }
 
