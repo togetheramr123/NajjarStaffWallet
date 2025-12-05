@@ -23,9 +23,13 @@ export default function WithdrawalForm({ maxAmount, onSubmit, isLoading }: Withd
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Form submitted");
+    console.log("Amount:", amount, "Beneficiary:", beneficiary, "Attachment:", attachment);
+    
     const numAmount = parseFloat(amount);
     
     if (!numAmount || numAmount <= 0) {
+      console.log("Validation failed: invalid amount");
       toast({
         title: "خطأ",
         description: "الرجاء إدخال مبلغ صحيح",
@@ -35,6 +39,7 @@ export default function WithdrawalForm({ maxAmount, onSubmit, isLoading }: Withd
     }
     
     if (numAmount > maxAmount) {
+      console.log("Validation failed: amount exceeds max");
       toast({
         title: "خطأ",
         description: `المبلغ المطلوب يتجاوز الرصيد المتاح (${maxAmount.toLocaleString('ar-EG')} ج.م)`,
@@ -44,6 +49,7 @@ export default function WithdrawalForm({ maxAmount, onSubmit, isLoading }: Withd
     }
 
     if (!attachment) {
+      console.log("Validation failed: no attachment");
       toast({
         title: "خطأ",
         description: "الرجاء إرفاق المستند المطلوب",
@@ -52,6 +58,7 @@ export default function WithdrawalForm({ maxAmount, onSubmit, isLoading }: Withd
       return;
     }
 
+    console.log("All validations passed, calling onSubmit");
     onSubmit({
       amount: numAmount,
       beneficiary,
@@ -65,8 +72,10 @@ export default function WithdrawalForm({ maxAmount, onSubmit, isLoading }: Withd
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("File input changed", e.target.files);
     const file = e.target.files?.[0];
     if (file) {
+      console.log("File selected:", file.name, file.type, file.size);
       setAttachment(file);
     }
   };

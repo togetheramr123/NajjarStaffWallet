@@ -49,16 +49,26 @@ export default function EmployeeDashboard() {
 
   const withdrawMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      const res = await fetch("/api/withdrawal-requests", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "خطأ في إرسال الطلب");
+      console.log("Sending withdrawal request to server...");
+      try {
+        const res = await fetch("/api/withdrawal-requests", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+        console.log("Response status:", res.status);
+        if (!res.ok) {
+          const error = await res.json();
+          console.log("Error response:", error);
+          throw new Error(error.message || "خطأ في إرسال الطلب");
+        }
+        const result = await res.json();
+        console.log("Success response:", result);
+        return result;
+      } catch (error) {
+        console.error("Fetch error:", error);
+        throw error;
       }
-      return res.json();
     },
     onSuccess: () => {
       toast({
@@ -80,6 +90,9 @@ export default function EmployeeDashboard() {
   });
 
   const handleWithdrawal = (data: { amount: number; beneficiary: "self" | "family"; notes: string; attachment?: File }) => {
+    console.log("Withdrawal data received:", data);
+    console.log("Attachment:", data.attachment);
+    
     const formData = new FormData();
     formData.append("amount", data.amount.toString());
     formData.append("beneficiary", data.beneficiary);
@@ -88,7 +101,10 @@ export default function EmployeeDashboard() {
     }
     if (data.attachment) {
       formData.append("attachment", data.attachment);
+      console.log("Attachment appended:", data.attachment.name);
     }
+    
+    console.log("Submitting withdrawal request...");
     withdrawMutation.mutate(formData);
   };
 
