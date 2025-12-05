@@ -412,6 +412,31 @@ export async function registerRoutes(
 
       const updatedEmployee = await storage.getUser(request.userId);
       
+      if (status === "approved") {
+        const notificationType = action === "modify" ? "modified" : "approved";
+        const notificationTitle = action === "modify" ? "تم تعديل طلب السحب والموافقة عليه" : "تمت الموافقة على طلب السحب";
+        const notificationMessage = action === "modify" 
+          ? `تم تعديل مبلغ السحب من ${request.amount.toLocaleString('ar-EG')} ج.م إلى ${finalAmount?.toLocaleString('ar-EG')} ج.م والموافقة عليه`
+          : `تمت الموافقة على طلب سحب ${(finalAmount || request.amount).toLocaleString('ar-EG')} ج.م`;
+        
+        await storage.createNotification({
+          userId: request.userId,
+          type: notificationType,
+          title: notificationTitle,
+          message: notificationMessage,
+          amount: finalAmount || request.amount,
+          remainingBalance: updatedEmployee?.balance || 0,
+        });
+      } else {
+        await storage.createNotification({
+          userId: request.userId,
+          type: "rejected",
+          title: "تم رفض طلب السحب",
+          message: `تم رفض طلب سحب ${request.amount.toLocaleString('ar-EG')} ج.م${notes ? `. السبب: ${notes}` : ''}`,
+          amount: request.amount,
+        });
+      }
+      
       res.json({
         ...processedRequest,
         receipt: status === "approved" ? {
@@ -465,6 +490,42 @@ export async function registerRoutes(
       res.json({ message: `تم معالجة رسوم الخدمة لـ ${count} موظف` });
     } catch (error) {
       res.status(500).json({ message: "خطأ في معالجة رسوم الخدمة" });
+    }
+  });
+
+  app.get("/api/notifications", requireAuth, async (req, res) => {
+    try {
+      const notifications = await storage.getNotifications(req.user!.id);
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في جلب الإشعارات" });
+    }
+  });
+
+  app.get("/api/notifications/unread-count", requireAuth, async (req, res) => {
+    try {
+      const count = await storage.getUnreadNotificationsCount(req.user!.id);
+      res.json({ count });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في جلب عدد الإشعارات" });
+    }
+  });
+
+  app.post("/api/notifications/:id/read", requireAuth, async (req, res) => {
+    try {
+      await storage.markNotificationAsRead(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في تحديث الإشعار" });
+    }
+  });
+
+  app.post("/api/notifications/read-all", requireAuth, async (req, res) => {
+    try {
+      await storage.markAllNotificationsAsRead(req.user!.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في تحديث الإشعارات" });
     }
   });
 
