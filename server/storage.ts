@@ -4,10 +4,12 @@ import {
   type Transaction, 
   type WithdrawalRequest,
   type ServiceFeeLog,
+  type Notification,
   users, 
   transactions, 
   withdrawalRequests,
-  serviceFeeLog
+  serviceFeeLog,
+  notifications
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -36,6 +38,12 @@ export interface IStorage {
   getServiceFeeLog(userId: string, month: number, year: number): Promise<ServiceFeeLog | undefined>;
   createServiceFeeLog(userId: string, amount: number, month: number, year: number): Promise<ServiceFeeLog>;
   processMonthlyServiceFees(): Promise<number>;
+  
+  getNotifications(userId: string): Promise<Notification[]>;
+  getUnreadNotificationsCount(userId: string): Promise<number>;
+  createNotification(data: { userId: string; type: 'approved' | 'rejected' | 'modified'; title: string; message: string; amount?: number; remainingBalance?: number }): Promise<Notification>;
+  markNotificationAsRead(id: string): Promise<void>;
+  markAllNotificationsAsRead(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -231,6 +239,45 @@ export class DatabaseStorage implements IStorage {
     }
     
     return processedCount;
+  }
+
+  async getNotifications(userId: string): Promise<Notification[]> {
+    return db.select().from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async getUnreadNotificationsCount(userId: string): Promise<number> {
+    const result = await db.select().from(notifications)
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false)
+      ));
+    return result.length;
+  }
+
+  async createNotification(data: { userId: string; type: 'approved' | 'rejected' | 'modified'; title: string; message: string; amount?: number; remainingBalance?: number }): Promise<Notification> {
+    const [notification] = await db.insert(notifications).values({
+      userId: data.userId,
+      type: data.type,
+      title: data.title,
+      message: data.message,
+      amount: data.amount || null,
+      remainingBalance: data.remainingBalance || null,
+    }).returning();
+    return notification;
+  }
+
+  async markNotificationAsRead(id: string): Promise<void> {
+    await db.update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, id));
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    await db.update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.userId, userId));
   }
 }
 

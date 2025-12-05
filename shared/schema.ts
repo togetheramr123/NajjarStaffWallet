@@ -8,6 +8,7 @@ export const statusEnum = pgEnum("status", ["active", "inactive"]);
 export const transactionTypeEnum = pgEnum("transaction_type", ["withdrawal", "deposit", "service_fee", "adjustment"]);
 export const requestStatusEnum = pgEnum("request_status", ["pending", "approved", "rejected"]);
 export const beneficiaryEnum = pgEnum("beneficiary", ["self", "family"]);
+export const notificationTypeEnum = pgEnum("notification_type", ["approved", "rejected", "modified"]);
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -58,6 +59,18 @@ export const serviceFeeLog = pgTable("service_fee_log", {
   month: integer("month").notNull(),
   year: integer("year").notNull(),
   processedAt: timestamp("processed_at").notNull().defaultNow(),
+});
+
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  type: notificationTypeEnum("type").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  amount: integer("amount"),
+  remainingBalance: integer("remaining_balance"),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -118,3 +131,4 @@ export type User = typeof users.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
 export type ServiceFeeLog = typeof serviceFeeLog.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
