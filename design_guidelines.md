@@ -1,4 +1,4 @@
-# Design Guidelines: HON GROUP Employee Credit Management System
+# Design Guidelines: HSN GROUP Employee Credit Management System
 
 ## Design Approach
 **Selected System:** Material Design adapted for enterprise data management
@@ -28,7 +28,7 @@
 ## Component Library
 
 ### Welcome/Intro Page (Pre-Login)
-- Full-viewport centered layout with HON GROUP logo prominent at top
+- Full-viewport centered layout with HSN GROUP logo prominent at top
 - Inspirational message in elegant typography: "مجموعة النجار تسعى لخدمة كل عناصر العاملين - وأنت واحد منهم، بل أفضلهم"
 - Professional background with subtle gradient or pattern
 - Clear "تسجيل الدخول / Login" button at bottom center
@@ -83,7 +83,7 @@
 - Icons: mirror horizontally where directional (arrows, etc.)
 
 ## Images
-**Welcome Page:** Professional workplace image or HON GROUP building exterior as background (subtle overlay for text readability)
+**Welcome Page:** Professional workplace image or HSN GROUP building exterior as background (subtle overlay for text readability)
 **Dashboard Header:** Optional small banner image showing teamwork/construction theme
 
 ## Accessibility & Interaction
@@ -98,4 +98,4 @@
 - Simple bar charts for monthly transaction summaries
 - Pie chart for credit distribution by department (if applicable)
 - Line graph for balance trends over time
-- Use red/blue from HON GROUP logo as primary chart colors
+- Use red/blue from HSN GROUP logo as primary chart colors

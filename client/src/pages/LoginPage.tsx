@@ -66,7 +66,7 @@ export default function LoginPage({ onBack }: LoginPageProps) {
               <Building2 className="h-10 w-10 text-primary-foreground" />
             </div>
             <div className="flex flex-col items-start">
-              <span className="text-2xl font-bold text-primary">HON GROUP</span>
+              <span className="text-2xl font-bold text-primary">HSN GROUP</span>
               <span className="text-sm text-muted-foreground">فريق النجار</span>
             </div>
           </div>

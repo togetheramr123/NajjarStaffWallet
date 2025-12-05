@@ -1,8 +1,8 @@
-# HON GROUP Employee Credit Management System
+# HSN GROUP Employee Credit Management System
 
 ## Overview
 
-This is an employee credit management system for HON GROUP, designed to manage employee balances, withdrawal requests, and financial transactions. The system supports two user roles: employees who can view their balance and request withdrawals, and managers who can approve/reject requests and manage employee accounts.
+This is an employee credit management system for HSN GROUP, designed to manage employee balances, withdrawal requests, and financial transactions. The system supports two user roles: employees who can view their balance and request withdrawals, and managers who can approve/reject requests and manage employee accounts.
 
 The application is built as a full-stack TypeScript application with a React frontend and Express backend, featuring bilingual support (Arabic/English) with RTL layout support for Arabic.
 

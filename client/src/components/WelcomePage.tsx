@@ -15,13 +15,13 @@ export default function WelcomePage({ onLogin }: WelcomePageProps) {
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
           <img 
             src={logoImage} 
-            alt="HON GROUP Logo" 
+            alt="HSN GROUP Logo" 
             className="h-32 w-auto mx-auto mb-6"
             data-testid="img-logo"
           />
           
           <h1 className="text-3xl font-bold text-white mb-2" data-testid="text-company-name">
-            HON GROUP
+            HSN GROUP
           </h1>
           <p className="text-lg text-blue-200 mb-6" data-testid="text-system-name">
             نظام إدارة رصيد الموظفين

@@ -55,7 +55,7 @@ export default function WithdrawalReceipt({ open, onOpenChange, receipt }: Withd
         </head>
         <body>
           <div class="header">
-            <div class="logo">HON GROUP</div>
+            <div class="logo">HSN GROUP</div>
             <div class="subtitle">فريق النجار</div>
             <div class="subtitle">نظام إدارة رصيد الموظفين</div>
           </div>
@@ -94,7 +94,7 @@ export default function WithdrawalReceipt({ open, onOpenChange, receipt }: Withd
           </div>
           ${receipt.notes ? `<div style="margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 4px;"><strong>ملاحظات:</strong> ${receipt.notes}</div>` : ""}
           <div class="footer">
-            <p>هذا الإيصال صادر من نظام HON GROUP</p>
+            <p>هذا الإيصال صادر من نظام HSN GROUP</p>
             <p>تاريخ الطباعة: ${new Date().toLocaleString("ar-EG")}</p>
           </div>
         </body>
@@ -120,7 +120,7 @@ export default function WithdrawalReceipt({ open, onOpenChange, receipt }: Withd
               <div className="text-center mb-4">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <Building2 className="h-8 w-8 text-primary" />
-                  <span className="text-xl font-bold text-primary">HON GROUP</span>
+                  <span className="text-xl font-bold text-primary">HSN GROUP</span>
                 </div>
                 <p className="text-sm text-muted-foreground">فريق النجار</p>
               </div>

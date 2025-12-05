@@ -126,7 +126,7 @@ export default function AccountStatement({
         </head>
         <body>
           <div class="header">
-            <div class="logo">HON GROUP</div>
+            <div class="logo">HSN GROUP</div>
             <div>فريق النجار - نظام إدارة رصيد الموظفين</div>
             <h2>كشف حساب المسحوبات</h2>
           </div>
@@ -182,7 +182,7 @@ export default function AccountStatement({
             </div>
           </div>
           <div class="footer">
-            <p>هذا الكشف صادر من نظام HON GROUP لإدارة رصيد الموظفين</p>
+            <p>هذا الكشف صادر من نظام HSN GROUP لإدارة رصيد الموظفين</p>
             <p>تاريخ الطباعة: ${new Date().toLocaleString("ar-EG")}</p>
           </div>
         </body>

@@ -56,9 +56,9 @@ export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarP
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <img src={logoImage} alt="HON GROUP" className="h-10 w-auto" />
+          <img src={logoImage} alt="HSN GROUP" className="h-10 w-auto" />
           <div className="flex flex-col">
-            <span className="font-bold text-sm text-sidebar-foreground">HON GROUP</span>
+            <span className="font-bold text-sm text-sidebar-foreground">HSN GROUP</span>
             <span className="text-xs text-sidebar-foreground/60">نظام الرصيد</span>
           </div>
         </div>
