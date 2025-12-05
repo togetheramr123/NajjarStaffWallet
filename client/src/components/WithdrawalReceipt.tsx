@@ -80,7 +80,7 @@ export default function WithdrawalReceipt({ open, onOpenChange, receipt }: Withd
             </div>
             <div class="row">
               <span class="label">تاريخ الموافقة:</span>
-              <span class="value">${new Date(receipt.approvedAt).toLocaleDateString("ar-SA")}</span>
+              <span class="value">${new Date(receipt.approvedAt).toLocaleDateString("ar-EG")}</span>
             </div>
             <div class="row">
               <span class="label">تمت الموافقة بواسطة:</span>

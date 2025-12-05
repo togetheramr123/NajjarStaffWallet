@@ -92,13 +92,13 @@ export default function AccountStatement({
       .map(
         (t) => `
         <tr>
-          <td>${new Date(t.date).toLocaleDateString("ar-SA")}</td>
+          <td>${new Date(t.date).toLocaleDateString("ar-EG")}</td>
           <td>${typeLabels[t.type]}</td>
           <td>${t.beneficiary === "self" ? "شخصي" : t.beneficiary === "family" ? "عائلي" : "-"}</td>
           <td style="color: ${t.type === "withdrawal" || t.type === "service_fee" ? "#dc2626" : "#16a34a"}">
-            ${t.type === "withdrawal" || t.type === "service_fee" ? "-" : "+"}${t.amount.toLocaleString("ar-SA")} ر.س
+            ${t.type === "withdrawal" || t.type === "service_fee" ? "-" : "+"}${t.amount.toLocaleString("ar-EG")} ج.م
           </td>
-          <td>${t.balanceAfter.toLocaleString("ar-SA")} ر.س</td>
+          <td>${t.balanceAfter.toLocaleString("ar-EG")} ج.م</td>
         </tr>
       `
       )
@@ -141,11 +141,11 @@ export default function AccountStatement({
             </div>
             <div class="info-item">
               <div class="info-label">الرصيد الحالي</div>
-              <div class="info-value" style="color: #1e3a8a;">${currentBalance.toLocaleString("ar-SA")} ر.س</div>
+              <div class="info-value" style="color: #1e3a8a;">${currentBalance.toLocaleString("ar-EG")} ج.م</div>
             </div>
             <div class="info-item">
               <div class="info-label">تاريخ الكشف</div>
-              <div class="info-value">${new Date().toLocaleDateString("ar-SA")}</div>
+              <div class="info-value">${new Date().toLocaleDateString("ar-EG")}</div>
             </div>
           </div>
           <table>
@@ -166,24 +166,24 @@ export default function AccountStatement({
             <h3 style="margin-bottom: 15px;">ملخص الحساب</h3>
             <div class="summary-row">
               <span>إجمالي المسحوبات:</span>
-              <span style="color: #dc2626;">${totalWithdrawals.toLocaleString("ar-SA")} ر.س</span>
+              <span style="color: #dc2626;">${totalWithdrawals.toLocaleString("ar-EG")} ج.م</span>
             </div>
             <div class="summary-row">
               <span>إجمالي الإيداعات:</span>
-              <span style="color: #16a34a;">${totalDeposits.toLocaleString("ar-SA")} ر.س</span>
+              <span style="color: #16a34a;">${totalDeposits.toLocaleString("ar-EG")} ج.م</span>
             </div>
             <div class="summary-row">
               <span>رسوم الخدمة:</span>
-              <span style="color: #dc2626;">${totalServiceFees.toLocaleString("ar-SA")} ر.س</span>
+              <span style="color: #dc2626;">${totalServiceFees.toLocaleString("ar-EG")} ج.م</span>
             </div>
             <div class="summary-row" style="border-top: 2px solid #1e3a8a; padding-top: 10px; margin-top: 10px;">
               <span style="font-weight: bold;">الرصيد الحالي:</span>
-              <span style="font-weight: bold; color: #1e3a8a;">${currentBalance.toLocaleString("ar-SA")} ر.س</span>
+              <span style="font-weight: bold; color: #1e3a8a;">${currentBalance.toLocaleString("ar-EG")} ج.م</span>
             </div>
           </div>
           <div class="footer">
             <p>هذا الكشف صادر من نظام HON GROUP لإدارة رصيد الموظفين</p>
-            <p>تاريخ الطباعة: ${new Date().toLocaleString("ar-SA")}</p>
+            <p>تاريخ الطباعة: ${new Date().toLocaleString("ar-EG")}</p>
           </div>
         </body>
       </html>
@@ -215,7 +215,7 @@ export default function AccountStatement({
           <div className="p-4 rounded-lg bg-primary/10 text-center">
             <p className="text-sm text-muted-foreground mb-1">الرصيد الحالي</p>
             <p className="text-2xl font-bold text-primary" data-testid="text-statement-balance">
-              {currentBalance.toLocaleString("ar-SA")} ر.س
+              {currentBalance.toLocaleString("ar-EG")} ج.م
             </p>
           </div>
           <div className="p-4 rounded-lg bg-destructive/10 text-center">
@@ -223,18 +223,18 @@ export default function AccountStatement({
               <TrendingDown className="h-4 w-4 text-destructive" />
               <p className="text-sm text-muted-foreground">إجمالي السحوبات</p>
             </div>
-            <p className="text-xl font-bold text-destructive">{totalWithdrawals.toLocaleString("ar-SA")} ر.س</p>
+            <p className="text-xl font-bold text-destructive">{totalWithdrawals.toLocaleString("ar-EG")} ج.م</p>
           </div>
           <div className="p-4 rounded-lg bg-green-500/10 text-center">
             <div className="flex items-center justify-center gap-1 mb-1">
               <TrendingUp className="h-4 w-4 text-green-600" />
               <p className="text-sm text-muted-foreground">إجمالي الإيداعات</p>
             </div>
-            <p className="text-xl font-bold text-green-600">{totalDeposits.toLocaleString("ar-SA")} ر.س</p>
+            <p className="text-xl font-bold text-green-600">{totalDeposits.toLocaleString("ar-EG")} ج.م</p>
           </div>
           <div className="p-4 rounded-lg bg-orange-500/10 text-center">
             <p className="text-sm text-muted-foreground mb-1">رسوم الخدمة</p>
-            <p className="text-xl font-bold text-orange-600">{totalServiceFees.toLocaleString("ar-SA")} ر.س</p>
+            <p className="text-xl font-bold text-orange-600">{totalServiceFees.toLocaleString("ar-EG")} ج.م</p>
           </div>
         </div>
 
@@ -264,7 +264,7 @@ export default function AccountStatement({
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        {new Date(t.date).toLocaleDateString("ar-SA")}
+                        {new Date(t.date).toLocaleDateString("ar-EG")}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -282,9 +282,9 @@ export default function AccountStatement({
                       }`}
                     >
                       {t.type === "withdrawal" || t.type === "service_fee" ? "-" : "+"}
-                      {t.amount.toLocaleString("ar-SA")} ر.س
+                      {t.amount.toLocaleString("ar-EG")} ج.م
                     </TableCell>
-                    <TableCell className="font-bold text-primary">{t.balanceAfter.toLocaleString("ar-SA")} ر.س</TableCell>
+                    <TableCell className="font-bold text-primary">{t.balanceAfter.toLocaleString("ar-EG")} ج.م</TableCell>
                   </TableRow>
                 ))
               )}

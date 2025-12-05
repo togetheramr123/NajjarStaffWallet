@@ -12,7 +12,7 @@ export default function BalanceCard({
   currentBalance, 
   pendingAmount, 
   monthlyFee,
-  currency = "ر.س"
+  currency = "ج.م"
 }: BalanceCardProps) {
   const availableBalance = currentBalance - pendingAmount;
 
@@ -25,7 +25,7 @@ export default function BalanceCard({
         </CardHeader>
         <CardContent>
           <div className="text-3xl font-bold" data-testid="text-current-balance">
-            {currentBalance.toLocaleString('ar-SA')} {currency}
+            {currentBalance.toLocaleString('ar-EG')} {currency}
           </div>
           <p className="text-xs opacity-75 mt-1">إجمالي الرصيد المتاح</p>
         </CardContent>
@@ -38,10 +38,10 @@ export default function BalanceCard({
         </CardHeader>
         <CardContent>
           <div className="text-3xl font-bold text-chart-3" data-testid="text-available-balance">
-            {availableBalance.toLocaleString('ar-SA')} {currency}
+            {availableBalance.toLocaleString('ar-EG')} {currency}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            بعد خصم الطلبات المعلقة ({pendingAmount.toLocaleString('ar-SA')})
+            بعد خصم الطلبات المعلقة ({pendingAmount.toLocaleString('ar-EG')})
           </p>
         </CardContent>
       </Card>

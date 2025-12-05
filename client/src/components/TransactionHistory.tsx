@@ -126,13 +126,13 @@ export default function TransactionHistory({ transactions, onViewAttachment }: T
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        {new Date(transaction.date).toLocaleDateString('ar-SA')}
+                        {new Date(transaction.date).toLocaleDateString('ar-EG')}
                       </div>
                     </TableCell>
                     <TableCell>{typeLabels[transaction.type]}</TableCell>
                     <TableCell className={transaction.type === 'withdrawal' || transaction.type === 'service_fee' ? 'text-destructive' : 'text-chart-3'}>
                       {transaction.type === 'withdrawal' || transaction.type === 'service_fee' ? '-' : '+'}
-                      {transaction.amount.toLocaleString('ar-SA')} ر.س
+                      {transaction.amount.toLocaleString('ar-EG')} ج.م
                     </TableCell>
                     <TableCell>
                       {transaction.beneficiary ? beneficiaryLabels[transaction.beneficiary] : '-'}
