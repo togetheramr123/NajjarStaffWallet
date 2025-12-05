@@ -86,6 +86,8 @@ export default function WithdrawalForm({ maxAmount, onSubmit, isLoading }: Withd
             <Input
               id="amount"
               type="number"
+              inputMode="numeric"
+              pattern="[0-9]*"
               placeholder="0"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
