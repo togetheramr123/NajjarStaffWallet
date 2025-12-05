@@ -134,7 +134,7 @@ export default function ManagerDashboard() {
     action: t.type === "withdrawal" ? "سحب رصيد" : t.type === "adjustment" ? "تعديل رصيد" : t.type === "service_fee" ? "رسوم خدمة" : "إيداع",
     employee: t.description || "موظف",
     amount: t.amount,
-    time: new Date(t.createdAt).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit" }),
+    time: new Date(t.createdAt).toLocaleString("ar-EG", { hour: "2-digit", minute: "2-digit" }),
   })) || [];
 
   if (statsLoading) {
@@ -178,7 +178,7 @@ export default function ManagerDashboard() {
         />
         <StatCard
           title="إجمالي الأرصدة"
-          value={`${(stats?.totalBalance || 0).toLocaleString("ar-SA")} ر.س`}
+          value={`${(stats?.totalBalance || 0).toLocaleString("ar-EG")} ج.م`}
           icon={Wallet}
           trend={{ value: 12, isPositive: true }}
         />
@@ -239,7 +239,7 @@ export default function ManagerDashboard() {
                         <p className="text-sm font-medium">{activity.action}</p>
                         <p className="text-xs text-muted-foreground">{activity.employee}</p>
                         {activity.amount > 0 && (
-                          <p className="text-xs text-primary font-medium">{activity.amount.toLocaleString("ar-SA")} ر.س</p>
+                          <p className="text-xs text-primary font-medium">{activity.amount.toLocaleString("ar-EG")} ج.م</p>
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">{activity.time}</span>

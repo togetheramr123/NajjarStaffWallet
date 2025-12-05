@@ -87,15 +87,15 @@ export default function WithdrawalReceipt({ open, onOpenChange, receipt }: Withd
               <span class="value">${receipt.approvedBy}</span>
             </div>
           </div>
-          <div class="amount">${receipt.amount.toLocaleString("ar-SA")} ر.س</div>
+          <div class="amount">${receipt.amount.toLocaleString("ar-EG")} ج.م</div>
           <div class="remaining">
             <div style="color: #666; font-size: 14px;">الرصيد المتبقي بعد السحب</div>
-            <div style="font-size: 20px; font-weight: bold; color: #1e3a8a;">${receipt.remainingBalance.toLocaleString("ar-SA")} ر.س</div>
+            <div style="font-size: 20px; font-weight: bold; color: #1e3a8a;">${receipt.remainingBalance.toLocaleString("ar-EG")} ج.م</div>
           </div>
           ${receipt.notes ? `<div style="margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 4px;"><strong>ملاحظات:</strong> ${receipt.notes}</div>` : ""}
           <div class="footer">
             <p>هذا الإيصال صادر من نظام HON GROUP</p>
-            <p>تاريخ الطباعة: ${new Date().toLocaleString("ar-SA")}</p>
+            <p>تاريخ الطباعة: ${new Date().toLocaleString("ar-EG")}</p>
           </div>
         </body>
       </html>
@@ -154,7 +154,7 @@ export default function WithdrawalReceipt({ open, onOpenChange, receipt }: Withd
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">تاريخ الموافقة</span>
-                  <span>{new Date(receipt.approvedAt).toLocaleDateString("ar-SA")}</span>
+                  <span>{new Date(receipt.approvedAt).toLocaleDateString("ar-EG")}</span>
                 </div>
               </div>
 
@@ -162,12 +162,12 @@ export default function WithdrawalReceipt({ open, onOpenChange, receipt }: Withd
 
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-1">مبلغ السحب</p>
-                <p className="text-3xl font-bold text-green-600">{receipt.amount.toLocaleString("ar-SA")} ر.س</p>
+                <p className="text-3xl font-bold text-green-600">{receipt.amount.toLocaleString("ar-EG")} ج.م</p>
               </div>
 
               <div className="mt-4 p-3 bg-muted rounded-lg text-center">
                 <p className="text-sm text-muted-foreground">الرصيد المتبقي بعد السحب</p>
-                <p className="text-xl font-bold text-primary">{receipt.remainingBalance.toLocaleString("ar-SA")} ر.س</p>
+                <p className="text-xl font-bold text-primary">{receipt.remainingBalance.toLocaleString("ar-EG")} ج.م</p>
               </div>
 
               {receipt.notes && (

@@ -37,7 +37,7 @@ export default function WithdrawalForm({ maxAmount, onSubmit, isLoading }: Withd
     if (numAmount > maxAmount) {
       toast({
         title: "خطأ",
-        description: `المبلغ المطلوب يتجاوز الرصيد المتاح (${maxAmount.toLocaleString('ar-SA')} ر.س)`,
+        description: `المبلغ المطلوب يتجاوز الرصيد المتاح (${maxAmount.toLocaleString('ar-EG')} ج.م)`,
         variant: "destructive",
       });
       return;
@@ -76,13 +76,13 @@ export default function WithdrawalForm({ maxAmount, onSubmit, isLoading }: Withd
       <CardHeader>
         <CardTitle className="text-xl">طلب سحب رصيد</CardTitle>
         <CardDescription>
-          الرصيد المتاح للسحب: {maxAmount.toLocaleString('ar-SA')} ر.س
+          الرصيد المتاح للسحب: {maxAmount.toLocaleString('ar-EG')} ج.م
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="amount">المبلغ المطلوب (ر.س)</Label>
+            <Label htmlFor="amount">المبلغ المطلوب (ج.م)</Label>
             <Input
               id="amount"
               type="number"
@@ -93,7 +93,7 @@ export default function WithdrawalForm({ maxAmount, onSubmit, isLoading }: Withd
               data-testid="input-amount"
             />
             <p className="text-xs text-muted-foreground">
-              الحد الأقصى: {maxAmount.toLocaleString('ar-SA')} ر.س
+              الحد الأقصى: {maxAmount.toLocaleString('ar-EG')} ج.م
             </p>
           </div>
 

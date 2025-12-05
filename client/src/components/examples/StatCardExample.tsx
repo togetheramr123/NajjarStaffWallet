@@ -14,7 +14,7 @@ export default function StatCardExample() {
       />
       <StatCard 
         title="إجمالي الرصيد"
-        value="150,000 ر.س"
+        value="150,000 ج.م"
         icon={Wallet}
         trend={{ value: 12, isPositive: true }}
       />

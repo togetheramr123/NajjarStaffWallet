@@ -80,12 +80,12 @@ export default function EmployeeCard({
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">الرصيد</span>
           <span className="font-bold text-lg" data-testid={`text-balance-${employee.id}`}>
-            {employee.balance.toLocaleString('ar-SA')} ر.س
+            {employee.balance.toLocaleString('ar-EG')} ج.م
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">تاريخ الانضمام</span>
-          <span>{new Date(employee.joinDate).toLocaleDateString('ar-SA')}</span>
+          <span>{new Date(employee.joinDate).toLocaleDateString('ar-EG')}</span>
         </div>
       </CardContent>
       <CardFooter className="flex items-center justify-between gap-2 pt-0">

@@ -75,7 +75,7 @@ export default function AdjustBalanceDialog({
 
     toast({
       title: "تم تعديل الرصيد",
-      description: `تم ${type === 'add' ? 'إضافة' : 'خصم'} ${numAmount.toLocaleString('ar-SA')} ر.س`,
+      description: `تم ${type === 'add' ? 'إضافة' : 'خصم'} ${numAmount.toLocaleString('ar-EG')} ج.م`,
     });
 
     onOpenChange(false);
@@ -101,13 +101,13 @@ export default function AdjustBalanceDialog({
             <div className="bg-muted/50 rounded-md p-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">الرصيد الحالي</span>
-                <span className="font-medium">{currentBalance.toLocaleString('ar-SA')} ر.س</span>
+                <span className="font-medium">{currentBalance.toLocaleString('ar-EG')} ج.م</span>
               </div>
               {amount && (
                 <div className="flex justify-between text-sm mt-2 pt-2 border-t">
                   <span className="text-muted-foreground">الرصيد الجديد</span>
                   <span className={`font-bold ${newBalance >= 0 ? 'text-chart-3' : 'text-destructive'}`}>
-                    {newBalance.toLocaleString('ar-SA')} ر.س
+                    {newBalance.toLocaleString('ar-EG')} ج.م
                   </span>
                 </div>
               )}

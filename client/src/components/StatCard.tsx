@@ -41,7 +41,7 @@ export default function StatCard({
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold" data-testid={`text-stat-${title}`}>
-          {typeof value === 'number' ? value.toLocaleString('ar-SA') : value}
+          {typeof value === 'number' ? value.toLocaleString('ar-EG') : value}
         </div>
         {description && (
           <p className={`text-xs mt-1 ${isPrimary ? 'opacity-75' : 'text-muted-foreground'}`}>

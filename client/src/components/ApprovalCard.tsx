@@ -72,14 +72,14 @@ export default function ApprovalCard({
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">المبلغ المطلوب</span>
           <span className="text-xl font-bold text-primary" data-testid={`text-amount-${request.id}`}>
-            {request.amount.toLocaleString('ar-SA')} ر.س
+            {request.amount.toLocaleString('ar-EG')} ج.م
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground flex items-center gap-1">
             <Calendar className="h-3 w-3" /> تاريخ الطلب
           </span>
-          <span>{new Date(request.requestDate).toLocaleDateString('ar-SA')}</span>
+          <span>{new Date(request.requestDate).toLocaleDateString('ar-EG')}</span>
         </div>
         {request.notes && (
           <div className="bg-muted/50 rounded-md p-2">
@@ -111,7 +111,7 @@ export default function ApprovalCard({
             <DialogHeader>
               <DialogTitle>تأكيد الموافقة</DialogTitle>
               <DialogDescription>
-                الموافقة على طلب سحب {request.amount.toLocaleString('ar-SA')} ر.س للموظف {request.employeeName}
+                الموافقة على طلب سحب {request.amount.toLocaleString('ar-EG')} ج.م للموظف {request.employeeName}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -181,7 +181,7 @@ export default function ApprovalCard({
             <DialogHeader>
               <DialogTitle>رفض الطلب</DialogTitle>
               <DialogDescription>
-                رفض طلب سحب {request.amount.toLocaleString('ar-SA')} ر.س للموظف {request.employeeName}
+                رفض طلب سحب {request.amount.toLocaleString('ar-EG')} ج.م للموظف {request.employeeName}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
