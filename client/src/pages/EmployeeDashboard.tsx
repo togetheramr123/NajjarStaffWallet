@@ -3,12 +3,13 @@ import TransactionHistory from "@/components/TransactionHistory";
 import WithdrawalForm from "@/components/WithdrawalForm";
 import AccountStatement from "@/components/AccountStatement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "wouter";
 
 interface BalanceData {
   currentBalance: number;
@@ -33,9 +34,25 @@ interface Transaction {
 }
 
 export default function EmployeeDashboard() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [location] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
+
+  const getInitialTab = () => {
+    if (location === "/withdraw") return "withdraw";
+    if (location === "/transactions") return "overview";
+    if (location === "/balance") return "statement";
+    return "overview";
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+
+  useEffect(() => {
+    const newTab = getInitialTab();
+    if (newTab !== activeTab) {
+      setActiveTab(newTab);
+    }
+  }, [location]);
 
   const { data: balanceData, isLoading: balanceLoading } = useQuery<BalanceData>({
     queryKey: ["/api/balance"],
@@ -49,26 +66,16 @@ export default function EmployeeDashboard() {
 
   const withdrawMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      console.log("Sending withdrawal request to server...");
-      try {
-        const res = await fetch("/api/withdrawal-requests", {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-        });
-        console.log("Response status:", res.status);
-        if (!res.ok) {
-          const error = await res.json();
-          console.log("Error response:", error);
-          throw new Error(error.message || "خطأ في إرسال الطلب");
-        }
-        const result = await res.json();
-        console.log("Success response:", result);
-        return result;
-      } catch (error) {
-        console.error("Fetch error:", error);
-        throw error;
+      const res = await fetch("/api/withdrawal-requests", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "خطأ في إرسال الطلب");
       }
+      return res.json();
     },
     onSuccess: () => {
       toast({
@@ -90,9 +97,6 @@ export default function EmployeeDashboard() {
   });
 
   const handleWithdrawal = (data: { amount: number; beneficiary: "self" | "family"; notes: string; attachment?: File }) => {
-    console.log("Withdrawal data received:", data);
-    console.log("Attachment:", data.attachment);
-    
     const formData = new FormData();
     formData.append("amount", data.amount.toString());
     formData.append("beneficiary", data.beneficiary);
@@ -101,10 +105,7 @@ export default function EmployeeDashboard() {
     }
     if (data.attachment) {
       formData.append("attachment", data.attachment);
-      console.log("Attachment appended:", data.attachment.name);
     }
-    
-    console.log("Submitting withdrawal request...");
     withdrawMutation.mutate(formData);
   };
 
