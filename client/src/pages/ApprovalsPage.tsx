@@ -31,6 +31,7 @@ interface PendingRequest {
   beneficiary: "self" | "family";
   requestDate: string;
   hasAttachment: boolean;
+  attachmentPath?: string;
   notes?: string;
 }
 
@@ -132,6 +133,18 @@ export default function ApprovalsPage() {
     );
   };
 
+  const handleViewAttachment = (requestId: string) => {
+    const pendingReq = pendingRequests?.find(r => r.id === requestId);
+    if (pendingReq?.attachmentPath) {
+      window.open(pendingReq.attachmentPath, "_blank");
+      return;
+    }
+    const allReq = allRequests?.find(r => r.id === requestId);
+    if (allReq?.attachmentPath) {
+      window.open(allReq.attachmentPath, "_blank");
+    }
+  };
+
   const approvedRequests = allRequests?.filter((r) => r.status === "approved") || [];
   const rejectedRequests = allRequests?.filter((r) => r.status === "rejected") || [];
 
@@ -200,6 +213,7 @@ export default function ApprovalsPage() {
                   onApprove={handleApprove}
                   onReject={handleReject}
                   onModify={handleModify}
+                  onViewAttachment={handleViewAttachment}
                 />
               ))}
             </div>
@@ -218,6 +232,7 @@ export default function ApprovalsPage() {
                   onApprove={handleApprove}
                   onReject={handleReject}
                   onModify={handleModify}
+                  onViewAttachment={handleViewAttachment}
                 />
               ))}
             </div>
@@ -236,6 +251,7 @@ export default function ApprovalsPage() {
                   onApprove={handleApprove}
                   onReject={handleReject}
                   onModify={handleModify}
+                  onViewAttachment={handleViewAttachment}
                 />
               ))}
             </div>

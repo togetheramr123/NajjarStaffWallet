@@ -180,14 +180,22 @@ export default function WithdrawalReceipt({ open, onOpenChange, receipt }: Withd
           </Card>
         </div>
 
-        <div className="flex gap-2 mt-4">
-          <Button onClick={handlePrint} className="flex-1" data-testid="button-print-receipt">
-            <Printer className="h-4 w-4 ml-2" />
-            طباعة الإيصال
-          </Button>
-          <Button variant="outline" onClick={() => onOpenChange(false)} data-testid="button-close-receipt">
+        <div className="flex flex-col gap-3 mt-4">
+          <div className="flex gap-2">
+            <Button onClick={handlePrint} className="flex-1" data-testid="button-print-receipt">
+              <Printer className="h-4 w-4 ml-2" />
+              طباعة الإيصال
+            </Button>
+          </div>
+          <Button 
+            variant="outline" 
+            size="lg"
+            className="w-full" 
+            onClick={() => onOpenChange(false)} 
+            data-testid="button-close-receipt"
+          >
             <X className="h-4 w-4 ml-2" />
-            إغلاق
+            رجوع للطلبات
           </Button>
         </div>
       </DialogContent>
