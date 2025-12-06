@@ -44,7 +44,8 @@ export default function LoginPage({ onBack }: LoginPageProps) {
         title: "تم تسجيل الدخول",
         description: `مرحباً ${result.user.name}`,
       });
-      setLocation(result.user.role === "manager" ? "/manager" : "/dashboard");
+      // Force page reload to ensure auth state is refreshed
+      window.location.href = result.user.role === "manager" ? "/manager" : "/dashboard";
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "خطأ في تسجيل الدخول";
       toast({
@@ -52,7 +53,6 @@ export default function LoginPage({ onBack }: LoginPageProps) {
         description: message.includes("401") ? "اسم المستخدم أو كلمة المرور غير صحيحة" : message,
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
