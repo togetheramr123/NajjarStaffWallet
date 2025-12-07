@@ -170,6 +170,63 @@ export async function registerRoutes(
     res.json({ user: safeUser });
   });
 
+  // Employee profile update (name and password)
+  const updateProfileSchema = z.object({
+    name: z.string().min(2, "الاسم يجب أن يكون حرفين على الأقل").optional(),
+    currentPassword: z.string().optional(),
+    newPassword: z.string().min(4, "كلمة المرور يجب أن تكون 4 أحرف على الأقل").optional(),
+  }).refine((data) => {
+    // If newPassword is provided, currentPassword must also be provided
+    if (data.newPassword && !data.currentPassword) {
+      return false;
+    }
+    return true;
+  }, { message: "يجب إدخال كلمة المرور الحالية لتغيير كلمة المرور" });
+
+  app.patch("/api/profile", requireAuth, async (req, res) => {
+    const parsed = updateProfileSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.errors[0]?.message || "بيانات غير صالحة" });
+    }
+
+    try {
+      const { name, currentPassword, newPassword } = parsed.data;
+      const userId = req.user!.id;
+
+      // If changing password, verify current password first
+      if (newPassword && currentPassword) {
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(404).json({ message: "المستخدم غير موجود" });
+        }
+        
+        const isValidPassword = await comparePasswords(currentPassword, user.password);
+        if (!isValidPassword) {
+          return res.status(400).json({ message: "كلمة المرور الحالية غير صحيحة" });
+        }
+      }
+
+      // Build update object
+      const updateData: { name?: string; password?: string } = {};
+      if (name) updateData.name = name;
+      if (newPassword) updateData.password = newPassword;
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "لا توجد بيانات للتحديث" });
+      }
+
+      const updatedUser = await storage.updateUser(userId, updateData);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "المستخدم غير موجود" });
+      }
+
+      const { password: _, ...safeUser } = updatedUser;
+      res.json({ user: safeUser, message: "تم تحديث البيانات بنجاح" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في تحديث البيانات" });
+    }
+  });
+
   app.get("/api/employees", requireManager, async (_req, res) => {
     try {
       const employees = await storage.getAllUsers();
