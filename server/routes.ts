@@ -409,6 +409,23 @@ export async function registerRoutes(
       const status = action === "reject" ? "rejected" : "approved";
       const finalAmount = action === "modify" ? modifiedAmount : request.amount;
       
+      // Check for overdraw protection when approving
+      if (status === "approved" && finalAmount) {
+        // Get pending amount excluding the current request
+        const allPendingRequests = await storage.getPendingWithdrawalRequests();
+        const otherPendingAmount = allPendingRequests
+          .filter(r => r.id !== id && r.userId === request.userId)
+          .reduce((sum, r) => sum + r.amount, 0);
+        
+        const availableBalance = employee.balance - otherPendingAmount;
+        
+        if (finalAmount > availableBalance) {
+          return res.status(400).json({ 
+            message: `الرصيد غير كافي. الرصيد المتاح: ${availableBalance.toLocaleString('ar-EG')} ج.م` 
+          });
+        }
+      }
+      
       const processedRequest = await storage.processWithdrawalRequest(
         id,
         req.user!.id,
