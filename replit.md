@@ -106,15 +106,19 @@ Preferred communication style: Simple, everyday language.
 ### Business Logic
 
 **Monthly Service Fees**:
-- Automatic 50 SAR monthly service fee deduction
+- Automatic 50 EGP monthly service fee deduction
+- Scheduled via node-cron to run on the 1st of each month at 00:05
+- Also runs on server startup to catch any missed fees
 - Service fee tracking in separate log table
-- Prevention of duplicate charges per month
+- Prevention of duplicate charges per month (idempotent)
+- Implementation: server/scheduler.ts
 
 **Balance Management**:
 - Real-time balance calculations
 - Pending amount tracking for unapproved withdrawals
 - Available balance = current balance - pending withdrawals
 - Manager-initiated balance adjustments with audit trail
+- Overdraw protection: system prevents approving withdrawals exceeding available balance
 
 **Withdrawal Workflow**:
 1. Employee submits withdrawal request with attachment
