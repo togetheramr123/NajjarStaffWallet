@@ -19,6 +19,7 @@ export const users = pgTable("users", {
   role: roleEnum("role").notNull().default("employee"),
   status: statusEnum("status").notNull().default("active"),
   balance: integer("balance").notNull().default(0),
+  profilePicture: text("profile_picture"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

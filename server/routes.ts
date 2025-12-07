@@ -228,6 +228,45 @@ export async function registerRoutes(
     }
   });
 
+  // Profile picture upload
+  app.post("/api/profile/picture", requireAuth, upload.single("picture"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "الرجاء اختيار صورة" });
+      }
+
+      const userId = req.user!.id;
+      const picturePath = `/uploads/${req.file.filename}`;
+
+      const updatedUser = await storage.updateUser(userId, { profilePicture: picturePath });
+      if (!updatedUser) {
+        return res.status(404).json({ message: "المستخدم غير موجود" });
+      }
+
+      const { password: _, ...safeUser } = updatedUser;
+      res.json({ user: safeUser, message: "تم تحديث الصورة بنجاح" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في تحديث الصورة" });
+    }
+  });
+
+  // Delete profile picture
+  app.delete("/api/profile/picture", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+
+      const updatedUser = await storage.updateUser(userId, { profilePicture: null });
+      if (!updatedUser) {
+        return res.status(404).json({ message: "المستخدم غير موجود" });
+      }
+
+      const { password: _, ...safeUser } = updatedUser;
+      res.json({ user: safeUser, message: "تم حذف الصورة بنجاح" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في حذف الصورة" });
+    }
+  });
+
   app.get("/api/employees", requireManager, async (_req, res) => {
     try {
       const employees = await storage.getAllUsers();

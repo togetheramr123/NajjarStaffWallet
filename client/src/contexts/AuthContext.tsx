@@ -10,6 +10,7 @@ export interface User {
   role: "employee" | "manager";
   status: "active" | "inactive";
   balance: number;
+  profilePicture: string | null;
   createdAt: string;
 }
 

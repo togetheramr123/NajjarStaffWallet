@@ -1,6 +1,7 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,8 +75,16 @@ export default function Header({ title, notificationCount = 0, onNotificationCli
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" data-testid="button-user-menu">
-              <User className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="rounded-full p-0" data-testid="button-user-menu">
+              <Avatar className="h-8 w-8">
+                <AvatarImage 
+                  src={user?.profilePicture || undefined} 
+                  alt={user?.name} 
+                />
+                <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                  {user?.name ? user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : <User className="h-4 w-4" />}
+                </AvatarFallback>
+              </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
