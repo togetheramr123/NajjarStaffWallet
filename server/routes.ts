@@ -405,7 +405,16 @@ export async function registerRoutes(
         attachmentPath: req.file ? `/uploads/${req.file.filename}` : null,
       });
 
-      res.status(201).json(request);
+      res.status(201).json({ 
+        message: "تم إرسال الطلب بنجاح",
+        request: {
+          id: request.id,
+          amount: request.amount,
+          beneficiary: request.beneficiary,
+          notes: request.notes,
+          createdAt: request.createdAt,
+        }
+      });
     } catch (error) {
       res.status(500).json({ message: "خطأ في إنشاء الطلب" });
     }

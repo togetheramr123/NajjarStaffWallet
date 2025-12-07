@@ -2,6 +2,7 @@ import BalanceCard from "@/components/BalanceCard";
 import TransactionHistory from "@/components/TransactionHistory";
 import WithdrawalForm from "@/components/WithdrawalForm";
 import AccountStatement from "@/components/AccountStatement";
+import WithdrawalRequestReceipt from "@/components/WithdrawalRequestReceipt";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -33,10 +34,22 @@ interface Transaction {
   processingNotes: string | null;
 }
 
+interface SubmittedRequest {
+  id: string;
+  employeeName: string;
+  employeeNumber: string;
+  amount: number;
+  beneficiary: string;
+  notes?: string;
+  createdAt: string;
+}
+
 export default function EmployeeDashboard() {
   const [location] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [submittedRequest, setSubmittedRequest] = useState<SubmittedRequest | null>(null);
 
   const getInitialTab = () => {
     if (location === "/withdraw") return "withdraw";
@@ -77,15 +90,29 @@ export default function EmployeeDashboard() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "تم إرسال الطلب",
-        description: "تم إرسال طلب السحب بنجاح وسيتم مراجعته",
-      });
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/balance"] });
       queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/withdrawal-requests"] });
-      setActiveTab("overview");
+      
+      if (data.request) {
+        setSubmittedRequest({
+          id: data.request.id,
+          employeeName: user?.name || "",
+          employeeNumber: user?.employeeNumber || "",
+          amount: data.request.amount,
+          beneficiary: data.request.beneficiary,
+          notes: data.request.notes,
+          createdAt: data.request.createdAt,
+        });
+        setShowReceipt(true);
+      } else {
+        toast({
+          title: "تم إرسال الطلب",
+          description: "تم إرسال طلب السحب بنجاح وسيتم مراجعته",
+        });
+        setActiveTab("overview");
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -206,6 +233,17 @@ export default function EmployeeDashboard() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <WithdrawalRequestReceipt
+        open={showReceipt}
+        onOpenChange={(open) => {
+          setShowReceipt(open);
+          if (!open) {
+            setActiveTab("overview");
+          }
+        }}
+        request={submittedRequest}
+      />
     </div>
   );
 }
