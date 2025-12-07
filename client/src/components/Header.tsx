@@ -1,17 +1,29 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Moon, Sun } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Bell, Moon, Sun, User, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "wouter";
 
 interface HeaderProps {
   title: string;
   notificationCount?: number;
   onNotificationClick?: () => void;
+  onLogout?: () => void;
 }
 
-export default function Header({ title, notificationCount = 0, onNotificationClick }: HeaderProps) {
+export default function Header({ title, notificationCount = 0, onNotificationClick, onLogout }: HeaderProps) {
   const [isDark, setIsDark] = useState(false);
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     const isDarkMode = document.documentElement.classList.contains('dark');
@@ -59,6 +71,36 @@ export default function Header({ title, notificationCount = 0, onNotificationCli
         >
           {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" data-testid="button-user-menu">
+              <User className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <div className="px-2 py-1.5 text-sm font-medium">
+              {user?.name}
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={() => setLocation("/profile")}
+              data-testid="menu-item-profile"
+            >
+              <User className="h-4 w-4 ml-2" />
+              الملف الشخصي
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={onLogout}
+              className="text-destructive focus:text-destructive"
+              data-testid="menu-item-logout"
+            >
+              <LogOut className="h-4 w-4 ml-2" />
+              تسجيل الخروج
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

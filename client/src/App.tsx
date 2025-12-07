@@ -12,6 +12,7 @@ import EmployeeDashboard from "@/pages/EmployeeDashboard";
 import ManagerDashboard from "@/pages/ManagerDashboard";
 import EmployeesPage from "@/pages/EmployeesPage";
 import ApprovalsPage from "@/pages/ApprovalsPage";
+import ProfilePage from "@/pages/ProfilePage";
 import LoginPage from "@/pages/LoginPage";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -30,6 +31,7 @@ function Router({ userRole }: { userRole: "employee" | "manager" }) {
         <Route path="/operations" component={ManagerDashboard} />
         <Route path="/reports" component={ManagerDashboard} />
         <Route path="/settings" component={ManagerDashboard} />
+        <Route path="/profile" component={ProfilePage} />
         <Route component={NotFound} />
       </Switch>
     );
@@ -42,6 +44,7 @@ function Router({ userRole }: { userRole: "employee" | "manager" }) {
       <Route path="/balance" component={EmployeeDashboard} />
       <Route path="/withdraw" component={EmployeeDashboard} />
       <Route path="/transactions" component={EmployeeDashboard} />
+      <Route path="/profile" component={ProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -84,6 +87,7 @@ function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => v
       "/operations": "العمليات المالية",
       "/reports": "التقارير",
       "/settings": "الإعدادات",
+      "/profile": "الملف الشخصي",
     };
     return titles[location] || "نظام الرصيد";
   };
@@ -102,6 +106,7 @@ function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => v
             title={getPageTitle()}
             notificationCount={pendingCount}
             onNotificationClick={() => setLocation("/approvals")}
+            onLogout={onLogout}
           />
           <main className="flex-1 overflow-auto bg-background">
             <Router userRole={user.role} />
