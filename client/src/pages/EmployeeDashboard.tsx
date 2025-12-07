@@ -2,6 +2,7 @@ import BalanceCard from "@/components/BalanceCard";
 import TransactionHistory from "@/components/TransactionHistory";
 import WithdrawalForm from "@/components/WithdrawalForm";
 import AccountStatement from "@/components/AccountStatement";
+import ProfileEditForm from "@/components/ProfileEditForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -42,6 +43,7 @@ export default function EmployeeDashboard() {
     if (location === "/withdraw") return "withdraw";
     if (location === "/transactions") return "overview";
     if (location === "/balance") return "statement";
+    if (location === "/profile") return "profile";
     return "overview";
   };
 
@@ -151,7 +153,7 @@ export default function EmployeeDashboard() {
       <BalanceCard currentBalance={currentBalance} pendingAmount={pendingAmount} monthlyFee={monthlyFee} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview" data-testid="tab-overview">
             سجل المعاملات
           </TabsTrigger>
@@ -160,6 +162,9 @@ export default function EmployeeDashboard() {
           </TabsTrigger>
           <TabsTrigger value="withdraw" data-testid="tab-withdraw">
             طلب سحب جديد
+          </TabsTrigger>
+          <TabsTrigger value="profile" data-testid="tab-profile">
+            الملف الشخصي
           </TabsTrigger>
         </TabsList>
 
@@ -203,6 +208,12 @@ export default function EmployeeDashboard() {
               onSubmit={handleWithdrawal}
               isLoading={withdrawMutation.isPending}
             />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="profile" className="mt-4">
+          <div className="max-w-lg">
+            <ProfileEditForm />
           </div>
         </TabsContent>
       </Tabs>

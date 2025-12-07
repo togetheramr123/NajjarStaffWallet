@@ -18,6 +18,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<{ user: User }>;
   logout: () => Promise<void>;
+  refreshUser: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -66,8 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await logoutMutation.mutateAsync();
   };
 
+  const refreshUser = () => {
+    refetch();
+  };
+
   return (
-    <AuthContext.Provider value={{ user: data?.user || null, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user: data?.user || null, isLoading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
+import { z } from "zod";
 import { storage } from "./storage";
 import { comparePasswords } from "./auth";
 import { 
