@@ -29,7 +29,7 @@ import logoImage from "@assets/Screenshot_2025-08-19_143408_1764855126982.png";
 import NotificationsPanel from "./NotificationsPanel";
 
 interface AppSidebarProps {
-  userRole: 'employee' | 'manager';
+  userRole: 'employee' | 'branch_manager' | 'manager';
   userName: string;
   onLogout: () => void;
 }
@@ -53,7 +53,7 @@ const managerMenuItems = [
 export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarProps) {
   const [location] = useLocation();
   const { setOpenMobile, isMobile } = useSidebar();
-  const menuItems = userRole === 'manager' ? managerMenuItems : employeeMenuItems;
+  const menuItems = (userRole === 'manager' || userRole === 'branch_manager') ? managerMenuItems : employeeMenuItems;
   const initials = userName.split(' ').map(n => n[0]).join('').slice(0, 2);
 
   const handleMenuClick = () => {

@@ -20,8 +20,8 @@ import { AuthProvider, useAuth, type User } from "@/contexts/AuthContext";
 
 export { useAuth };
 
-function Router({ userRole }: { userRole: "employee" | "manager" }) {
-  if (userRole === "manager") {
+function Router({ userRole }: { userRole: "employee" | "branch_manager" | "manager" }) {
+  if (userRole === "manager" || userRole === "branch_manager") {
     return (
       <Switch>
         <Route path="/" component={ManagerDashboard} />

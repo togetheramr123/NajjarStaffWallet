@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, Moon, Sun, User, LogOut } from "lucide-react";
+import { Bell, Moon, Sun, User, LogOut, ArrowRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
@@ -24,7 +24,18 @@ interface HeaderProps {
 export default function Header({ title, notificationCount = 0, onNotificationClick, onLogout }: HeaderProps) {
   const [isDark, setIsDark] = useState(false);
   const { user } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+
+  const mainPages = ["/", "/manager", "/dashboard"];
+  const showBackButton = !mainPages.includes(location);
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      setLocation(user?.role === "manager" ? "/manager" : "/dashboard");
+    }
+  };
 
   useEffect(() => {
     const isDarkMode = document.documentElement.classList.contains('dark');
@@ -42,6 +53,16 @@ export default function Header({ title, notificationCount = 0, onNotificationCli
     <header className="sticky top-0 z-50 flex items-center justify-between gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 py-3">
       <div className="flex items-center gap-3">
         <SidebarTrigger data-testid="button-sidebar-toggle" />
+        {showBackButton && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleBack}
+            data-testid="button-back"
+          >
+            <ArrowRight className="h-5 w-5" />
+          </Button>
+        )}
         <h1 className="text-lg font-semibold" data-testid="text-page-title">{title}</h1>
       </div>
       
