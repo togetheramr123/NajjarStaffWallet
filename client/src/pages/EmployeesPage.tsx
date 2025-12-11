@@ -3,30 +3,43 @@ import EmployeeCard from "@/components/EmployeeCard";
 import AddEmployeeDialog from "@/components/AddEmployeeDialog";
 import AdjustBalanceDialog from "@/components/AdjustBalanceDialog";
 import EditEmployeeDialog from "@/components/EditEmployeeDialog";
+import BranchManagement from "@/components/BranchManagement";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, Loader2, Users, Building2 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Employee {
   id: string;
   name: string;
   employeeNumber: string;
   balance: number;
-  role: "employee" | "manager";
+  role: "employee" | "branch_manager" | "manager";
   status: "active" | "inactive";
+  branchId: string | null;
   createdAt: string;
 }
 
+interface Branch {
+  id: string;
+  name: string;
+  code: string;
+}
+
 export default function EmployeesPage() {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [branchFilter, setBranchFilter] = useState<string>("all");
   const [adjustDialogOpen, setAdjustDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [activeTab, setActiveTab] = useState("employees");
   const { toast } = useToast();
 
   const { data: employees, isLoading } = useQuery<Employee[]>({
@@ -34,8 +47,12 @@ export default function EmployeesPage() {
     refetchInterval: 30000,
   });
 
+  const { data: branches } = useQuery<Branch[]>({
+    queryKey: ["/api/branches"],
+  });
+
   const createEmployeeMutation = useMutation({
-    mutationFn: async (data: { name: string; employeeNumber: string; username: string; password: string; role: string; initialBalance: number }) => {
+    mutationFn: async (data: { name: string; employeeNumber: string; username: string; password: string; role: string; initialBalance: number; branchId?: string }) => {
       const res = await apiRequest("POST", "/api/employees", data);
       return res.json();
     },
@@ -100,8 +117,8 @@ export default function EmployeesPage() {
   });
 
   const editEmployeeMutation = useMutation({
-    mutationFn: async ({ id, name, employeeNumber, password, role }: { id: string; name: string; employeeNumber: string; password?: string; role: string }) => {
-      const res = await apiRequest("PATCH", `/api/employees/${id}`, { name, employeeNumber, password, role });
+    mutationFn: async ({ id, name, employeeNumber, password, role, branchId }: { id: string; name: string; employeeNumber: string; password?: string; role: string; branchId?: string }) => {
+      const res = await apiRequest("PATCH", `/api/employees/${id}`, { name, employeeNumber, password, role, branchId });
       return res.json();
     },
     onSuccess: () => {
@@ -125,10 +142,16 @@ export default function EmployeesPage() {
     const matchesSearch = emp.name.includes(searchTerm) || emp.employeeNumber.includes(searchTerm);
     const matchesStatus = statusFilter === "all" || emp.status === statusFilter;
     const matchesRole = roleFilter === "all" || emp.role === roleFilter;
-    return matchesSearch && matchesStatus && matchesRole;
+    const matchesBranch = branchFilter === "all" || emp.branchId === branchFilter || (branchFilter === "none" && !emp.branchId);
+    return matchesSearch && matchesStatus && matchesRole && matchesBranch;
   }) || [];
 
-  const handleAddEmployee = (data: { name: string; employeeNumber: string; username: string; password: string; initialBalance: number; role: "employee" | "manager" }) => {
+  const getBranchName = (branchId: string | null) => {
+    if (!branchId) return "بدون فرع";
+    return branches?.find((b) => b.id === branchId)?.name || "غير معروف";
+  };
+
+  const handleAddEmployee = (data: { name: string; employeeNumber: string; username: string; password: string; initialBalance: number; role: "employee" | "branch_manager" | "manager"; branchId?: string }) => {
     createEmployeeMutation.mutate(data);
   };
 
@@ -144,7 +167,7 @@ export default function EmployeesPage() {
     }
   };
 
-  const handleEditEmployee = (data: { id: string; name: string; employeeNumber: string; password?: string; role: string }) => {
+  const handleEditEmployee = (data: { id: string; name: string; employeeNumber: string; password?: string; role: string; branchId?: string }) => {
     editEmployeeMutation.mutate(data);
   };
 
@@ -164,80 +187,193 @@ export default function EmployeesPage() {
     );
   }
 
+  const isMainManager = user?.role === "manager";
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-2xl font-bold mb-1" data-testid="text-employees-title">إدارة الموظفين</h2>
-          <p className="text-muted-foreground">عرض وإدارة جميع الموظفين</p>
+          <p className="text-muted-foreground">عرض وإدارة جميع الموظفين والفروع</p>
         </div>
-        <AddEmployeeDialog onAdd={handleAddEmployee} isLoading={createEmployeeMutation.isPending} />
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="بحث بالاسم أو رقم الموظف..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pr-10"
-            data-testid="input-search-employees"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-40" data-testid="select-status-filter">
-            <SelectValue placeholder="الحالة" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">الكل</SelectItem>
-            <SelectItem value="active">نشط</SelectItem>
-            <SelectItem value="inactive">معطل</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-full sm:w-40" data-testid="select-role-filter">
-            <SelectValue placeholder="الصلاحية" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">الكل</SelectItem>
-            <SelectItem value="employee">موظف</SelectItem>
-            <SelectItem value="manager">مدير</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {isMainManager ? (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="employees" className="gap-2">
+              <Users className="h-4 w-4" />
+              الموظفين
+            </TabsTrigger>
+            <TabsTrigger value="branches" className="gap-2">
+              <Building2 className="h-4 w-4" />
+              الفروع
+            </TabsTrigger>
+          </TabsList>
 
-      {filteredEmployees.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          {employees?.length === 0 ? "لا يوجد موظفين مسجلين" : "لا يوجد موظفين مطابقين للبحث"}
-        </div>
+          <TabsContent value="employees" className="mt-4 space-y-4">
+            <div className="flex items-center justify-end">
+              <AddEmployeeDialog onAdd={handleAddEmployee} isLoading={createEmployeeMutation.isPending} branches={branches || []} />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="بحث بالاسم أو رقم الموظف..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pr-10"
+                  data-testid="input-search-employees"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-40" data-testid="select-status-filter">
+                  <SelectValue placeholder="الحالة" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="active">نشط</SelectItem>
+                  <SelectItem value="inactive">معطل</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-full sm:w-40" data-testid="select-role-filter">
+                  <SelectValue placeholder="الصلاحية" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="employee">موظف</SelectItem>
+                  <SelectItem value="branch_manager">مدير فرع</SelectItem>
+                  <SelectItem value="manager">مدير عام</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={branchFilter} onValueChange={setBranchFilter}>
+                <SelectTrigger className="w-full sm:w-40" data-testid="select-branch-filter">
+                  <SelectValue placeholder="الفرع" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">جميع الفروع</SelectItem>
+                  <SelectItem value="none">بدون فرع</SelectItem>
+                  {branches?.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {filteredEmployees.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                {employees?.length === 0 ? "لا يوجد موظفين مسجلين" : "لا يوجد موظفين مطابقين للبحث"}
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredEmployees.map((employee) => (
+                  <EmployeeCard
+                    key={employee.id}
+                    employee={{
+                      id: employee.id,
+                      name: employee.name,
+                      employeeNumber: employee.employeeNumber,
+                      balance: employee.balance,
+                      role: employee.role,
+                      status: employee.status,
+                      joinDate: new Date(employee.createdAt).toISOString().split("T")[0],
+                      branchName: getBranchName(employee.branchId),
+                    }}
+                    onView={(id) => openEditDialog(id)}
+                    onEdit={(id) => openEditDialog(id)}
+                    onAdjustBalance={(id) => {
+                      const emp = employees?.find((e) => e.id === id);
+                      if (emp) {
+                        setSelectedEmployee(emp);
+                        setAdjustDialogOpen(true);
+                      }
+                    }}
+                    onToggleStatus={handleToggleStatus}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="branches" className="mt-4">
+            <BranchManagement />
+          </TabsContent>
+        </Tabs>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredEmployees.map((employee) => (
-            <EmployeeCard
-              key={employee.id}
-              employee={{
-                id: employee.id,
-                name: employee.name,
-                employeeNumber: employee.employeeNumber,
-                balance: employee.balance,
-                role: employee.role,
-                status: employee.status,
-                joinDate: new Date(employee.createdAt).toISOString().split("T")[0],
-              }}
-              onView={(id) => openEditDialog(id)}
-              onEdit={(id) => openEditDialog(id)}
-              onAdjustBalance={(id) => {
-                const emp = employees?.find((e) => e.id === id);
-                if (emp) {
-                  setSelectedEmployee(emp);
-                  setAdjustDialogOpen(true);
-                }
-              }}
-              onToggleStatus={handleToggleStatus}
-            />
-          ))}
-        </div>
+        <>
+          <div className="flex items-center justify-end">
+            <AddEmployeeDialog onAdd={handleAddEmployee} isLoading={createEmployeeMutation.isPending} branches={branches || []} />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="بحث بالاسم أو رقم الموظف..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pr-10"
+                data-testid="input-search-employees"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-40" data-testid="select-status-filter">
+                <SelectValue placeholder="الحالة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                <SelectItem value="active">نشط</SelectItem>
+                <SelectItem value="inactive">معطل</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-full sm:w-40" data-testid="select-role-filter">
+                <SelectValue placeholder="الصلاحية" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                <SelectItem value="employee">موظف</SelectItem>
+                <SelectItem value="branch_manager">مدير فرع</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {filteredEmployees.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              {employees?.length === 0 ? "لا يوجد موظفين مسجلين" : "لا يوجد موظفين مطابقين للبحث"}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredEmployees.map((employee) => (
+                <EmployeeCard
+                  key={employee.id}
+                  employee={{
+                    id: employee.id,
+                    name: employee.name,
+                    employeeNumber: employee.employeeNumber,
+                    balance: employee.balance,
+                    role: employee.role,
+                    status: employee.status,
+                    joinDate: new Date(employee.createdAt).toISOString().split("T")[0],
+                    branchName: getBranchName(employee.branchId),
+                  }}
+                  onView={(id) => openEditDialog(id)}
+                  onEdit={(id) => openEditDialog(id)}
+                  onAdjustBalance={(id) => {
+                    const emp = employees?.find((e) => e.id === id);
+                    if (emp) {
+                      setSelectedEmployee(emp);
+                      setAdjustDialogOpen(true);
+                    }
+                  }}
+                  onToggleStatus={handleToggleStatus}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {selectedEmployee && (
@@ -257,6 +393,7 @@ export default function EmployeesPage() {
         employee={selectedEmployee}
         onSave={handleEditEmployee}
         isLoading={editEmployeeMutation.isPending}
+        branches={branches || []}
       />
     </div>
   );

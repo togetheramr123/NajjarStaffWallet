@@ -3,12 +3,19 @@ import { pgTable, text, varchar, integer, timestamp, boolean, pgEnum } from "dri
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const roleEnum = pgEnum("role", ["employee", "manager"]);
+export const roleEnum = pgEnum("role", ["employee", "branch_manager", "manager"]);
 export const statusEnum = pgEnum("status", ["active", "inactive"]);
 export const transactionTypeEnum = pgEnum("transaction_type", ["withdrawal", "deposit", "service_fee", "adjustment"]);
 export const requestStatusEnum = pgEnum("request_status", ["pending", "approved", "rejected"]);
 export const beneficiaryEnum = pgEnum("beneficiary", ["self", "family"]);
 export const notificationTypeEnum = pgEnum("notification_type", ["approved", "rejected", "modified"]);
+
+export const branches = pgTable("branches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  code: text("code").notNull().unique(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -20,6 +27,7 @@ export const users = pgTable("users", {
   status: statusEnum("status").notNull().default("active"),
   balance: integer("balance").notNull().default(0),
   profilePicture: text("profile_picture"),
+  branchId: varchar("branch_id").references(() => branches.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -74,6 +82,11 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const insertBranchSchema = createInsertSchema(branches).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -105,8 +118,14 @@ export const createEmployeeSchema = z.object({
   employeeNumber: z.string().min(1, "رقم الموظف مطلوب"),
   username: z.string().min(3, "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"),
   password: z.string().min(4, "كلمة المرور يجب أن تكون 4 أحرف على الأقل"),
-  role: z.enum(["employee", "manager"]).default("employee"),
+  role: z.enum(["employee", "branch_manager", "manager"]).default("employee"),
   initialBalance: z.number().min(0).default(0),
+  branchId: z.string().optional(),
+});
+
+export const createBranchSchema = z.object({
+  name: z.string().min(1, "اسم الفرع مطلوب"),
+  code: z.string().min(1, "كود الفرع مطلوب"),
 });
 
 export const adjustBalanceSchema = z.object({
@@ -128,7 +147,9 @@ export const processRequestSchema = z.object({
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertBranch = z.infer<typeof insertBranchSchema>;
 export type User = typeof users.$inferSelect;
+export type Branch = typeof branches.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
 export type ServiceFeeLog = typeof serviceFeeLog.$inferSelect;

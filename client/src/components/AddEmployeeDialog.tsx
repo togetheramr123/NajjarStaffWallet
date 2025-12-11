@@ -7,6 +7,12 @@ import { Plus, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
+interface Branch {
+  id: string;
+  name: string;
+  code: string;
+}
+
 interface AddEmployeeDialogProps {
   onAdd: (employee: {
     name: string;
@@ -14,19 +20,22 @@ interface AddEmployeeDialogProps {
     username: string;
     password: string;
     initialBalance: number;
-    role: 'employee' | 'manager';
+    role: 'employee' | 'branch_manager' | 'manager';
+    branchId?: string;
   }) => void;
   isLoading?: boolean;
+  branches?: Branch[];
 }
 
-export default function AddEmployeeDialog({ onAdd, isLoading }: AddEmployeeDialogProps) {
+export default function AddEmployeeDialog({ onAdd, isLoading, branches = [] }: AddEmployeeDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [employeeNumber, setEmployeeNumber] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
-  const [role, setRole] = useState<'employee' | 'manager'>('employee');
+  const [role, setRole] = useState<'employee' | 'branch_manager' | 'manager'>('employee');
+  const [branchId, setBranchId] = useState<string>('');
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -59,6 +68,15 @@ export default function AddEmployeeDialog({ onAdd, isLoading }: AddEmployeeDialo
       return;
     }
 
+    if (role === 'branch_manager' && (!branchId || branchId === 'none')) {
+      toast({
+        title: "خطأ",
+        description: "يجب تحديد الفرع لمدير الفرع",
+        variant: "destructive",
+      });
+      return;
+    }
+
     onAdd({
       name,
       employeeNumber,
@@ -66,6 +84,7 @@ export default function AddEmployeeDialog({ onAdd, isLoading }: AddEmployeeDialo
       password,
       initialBalance: parseFloat(initialBalance) || 0,
       role,
+      branchId: branchId && branchId !== 'none' ? branchId : undefined,
     });
 
     setOpen(false);
@@ -75,6 +94,7 @@ export default function AddEmployeeDialog({ onAdd, isLoading }: AddEmployeeDialo
     setPassword('');
     setInitialBalance('');
     setRole('employee');
+    setBranchId('');
   };
 
   return (
@@ -153,16 +173,35 @@ export default function AddEmployeeDialog({ onAdd, isLoading }: AddEmployeeDialo
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">الصلاحية</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as 'employee' | 'manager')} disabled={isLoading}>
+              <Select value={role} onValueChange={(v) => setRole(v as 'employee' | 'branch_manager' | 'manager')} disabled={isLoading}>
                 <SelectTrigger data-testid="select-role">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="employee">موظف</SelectItem>
-                  <SelectItem value="manager">مدير</SelectItem>
+                  <SelectItem value="branch_manager">مدير فرع</SelectItem>
+                  <SelectItem value="manager">مدير عام</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {(role === 'employee' || role === 'branch_manager') && branches.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="branch">الفرع</Label>
+                <Select value={branchId} onValueChange={setBranchId} disabled={isLoading}>
+                  <SelectTrigger data-testid="select-branch">
+                    <SelectValue placeholder="اختر الفرع" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">بدون فرع</SelectItem>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter className="pt-4 border-t mt-2">
             <Button type="submit" disabled={isLoading} className="w-full sm:w-auto" data-testid="button-confirm-add">

@@ -5,21 +5,31 @@ import {
   type WithdrawalRequest,
   type ServiceFeeLog,
   type Notification,
+  type Branch,
+  type InsertBranch,
   users, 
   transactions, 
   withdrawalRequests,
   serviceFeeLog,
-  notifications
+  notifications,
+  branches
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { hashPassword } from "./auth";
 
 export interface IStorage {
+  getBranch(id: string): Promise<Branch | undefined>;
+  getAllBranches(): Promise<Branch[]>;
+  createBranch(data: InsertBranch): Promise<Branch>;
+  updateBranch(id: string, data: Partial<Branch>): Promise<Branch | undefined>;
+  deleteBranch(id: string): Promise<boolean>;
+  
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
+  getUsersByBranch(branchId: string): Promise<User[]>;
   updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
   updateUserBalance(id: string, amount: number): Promise<User | undefined>;
   
@@ -30,6 +40,7 @@ export interface IStorage {
   getWithdrawalRequest(id: string): Promise<WithdrawalRequest | undefined>;
   getWithdrawalRequests(userId?: string): Promise<WithdrawalRequest[]>;
   getPendingWithdrawalRequests(): Promise<(WithdrawalRequest & { user: User })[]>;
+  getPendingWithdrawalRequestsByBranch(branchId: string): Promise<(WithdrawalRequest & { user: User })[]>;
   createWithdrawalRequest(data: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'status' | 'processedAt' | 'processedBy' | 'processingNotes' | 'modifiedAmount'>): Promise<WithdrawalRequest>;
   processWithdrawalRequest(id: string, processedBy: string, status: 'approved' | 'rejected', notes?: string, modifiedAmount?: number): Promise<WithdrawalRequest | undefined>;
   
@@ -47,6 +58,30 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  async getBranch(id: string): Promise<Branch | undefined> {
+    const [branch] = await db.select().from(branches).where(eq(branches.id, id));
+    return branch;
+  }
+
+  async getAllBranches(): Promise<Branch[]> {
+    return db.select().from(branches).orderBy(desc(branches.createdAt));
+  }
+
+  async createBranch(data: InsertBranch): Promise<Branch> {
+    const [branch] = await db.insert(branches).values(data).returning();
+    return branch;
+  }
+
+  async updateBranch(id: string, data: Partial<Branch>): Promise<Branch | undefined> {
+    const [branch] = await db.update(branches).set(data).where(eq(branches.id, id)).returning();
+    return branch;
+  }
+
+  async deleteBranch(id: string): Promise<boolean> {
+    const result = await db.delete(branches).where(eq(branches.id, id)).returning();
+    return result.length > 0;
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
@@ -68,6 +103,12 @@ export class DatabaseStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     return db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async getUsersByBranch(branchId: string): Promise<User[]> {
+    return db.select().from(users)
+      .where(eq(users.branchId, branchId))
+      .orderBy(desc(users.createdAt));
   }
 
   async updateUser(id: string, data: Partial<User> & { password?: string }): Promise<User | undefined> {
@@ -127,6 +168,23 @@ export class DatabaseStorage implements IStorage {
       .from(withdrawalRequests)
       .innerJoin(users, eq(withdrawalRequests.userId, users.id))
       .where(eq(withdrawalRequests.status, 'pending'))
+      .orderBy(desc(withdrawalRequests.createdAt));
+    
+    return results.map((r: { request: WithdrawalRequest; user: User }) => ({ ...r.request, user: r.user }));
+  }
+
+  async getPendingWithdrawalRequestsByBranch(branchId: string): Promise<(WithdrawalRequest & { user: User })[]> {
+    const results = await db
+      .select({
+        request: withdrawalRequests,
+        user: users,
+      })
+      .from(withdrawalRequests)
+      .innerJoin(users, eq(withdrawalRequests.userId, users.id))
+      .where(and(
+        eq(withdrawalRequests.status, 'pending'),
+        eq(users.branchId, branchId)
+      ))
       .orderBy(desc(withdrawalRequests.createdAt));
     
     return results.map((r: { request: WithdrawalRequest; user: User }) => ({ ...r.request, user: r.user }));

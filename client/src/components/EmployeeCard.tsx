@@ -3,16 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Eye, Edit, Wallet, Ban } from "lucide-react";
+import { MoreVertical, Eye, Edit, Wallet, Ban, Building2 } from "lucide-react";
 
 interface Employee {
   id: string;
   name: string;
   employeeNumber: string;
   balance: number;
-  role: 'employee' | 'manager';
+  role: 'employee' | 'branch_manager' | 'manager';
   status: 'active' | 'inactive';
   joinDate: string;
+  branchName?: string;
 }
 
 interface EmployeeCardProps {
@@ -87,10 +88,19 @@ export default function EmployeeCard({
           <span className="text-muted-foreground">تاريخ الانضمام</span>
           <span>{new Date(employee.joinDate).toLocaleDateString('ar-EG')}</span>
         </div>
+        {employee.branchName && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground flex items-center gap-1">
+              <Building2 className="h-3 w-3" />
+              الفرع
+            </span>
+            <span>{employee.branchName}</span>
+          </div>
+        )}
       </CardContent>
       <CardFooter className="flex items-center justify-between gap-2 pt-0">
-        <Badge variant={employee.role === 'manager' ? 'default' : 'secondary'}>
-          {employee.role === 'manager' ? 'مدير' : 'موظف'}
+        <Badge variant={employee.role === 'manager' ? 'default' : employee.role === 'branch_manager' ? 'outline' : 'secondary'}>
+          {employee.role === 'manager' ? 'مدير عام' : employee.role === 'branch_manager' ? 'مدير فرع' : 'موظف'}
         </Badge>
         <Badge variant={employee.status === 'active' ? 'outline' : 'destructive'}>
           {employee.status === 'active' ? 'نشط' : 'معطل'}

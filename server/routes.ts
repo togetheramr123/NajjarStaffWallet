@@ -12,6 +12,7 @@ import {
   adjustBalanceSchema, 
   createWithdrawalSchema,
   processRequestSchema,
+  createBranchSchema,
   type User
 } from "@shared/schema";
 import multer from "multer";
@@ -25,9 +26,10 @@ declare global {
       username: string;
       name: string;
       employeeNumber: string;
-      role: "employee" | "manager";
+      role: "employee" | "branch_manager" | "manager";
       status: "active" | "inactive";
       balance: number;
+      branchId: string | null;
       createdAt: Date;
       password: string;
     }
@@ -69,6 +71,13 @@ function requireAuth(req: Request, res: Response, next: () => void) {
 
 function requireManager(req: Request, res: Response, next: () => void) {
   if (req.isAuthenticated() && req.user?.role === "manager") {
+    return next();
+  }
+  res.status(403).json({ message: "صلاحيات غير كافية" });
+}
+
+function requireBranchManagerOrAbove(req: Request, res: Response, next: () => void) {
+  if (req.isAuthenticated() && (req.user?.role === "manager" || req.user?.role === "branch_manager")) {
     return next();
   }
   res.status(403).json({ message: "صلاحيات غير كافية" });
@@ -297,6 +306,7 @@ export async function registerRoutes(
         role: parsed.data.role,
         status: "active",
         balance: parsed.data.initialBalance,
+        branchId: parsed.data.branchId || null,
       });
 
       const { password: _, ...safeUser } = user;
@@ -308,10 +318,10 @@ export async function registerRoutes(
 
   app.patch("/api/employees/:id", requireManager, async (req, res) => {
     const { id } = req.params;
-    const { name, employeeNumber, role, status, password } = req.body;
+    const { name, employeeNumber, role, status, password, branchId } = req.body;
 
     try {
-      const user = await storage.updateUser(id, { name, employeeNumber, role, status, password });
+      const user = await storage.updateUser(id, { name, employeeNumber, role, status, password, branchId });
       if (!user) {
         return res.status(404).json({ message: "الموظف غير موجود" });
       }
@@ -362,6 +372,97 @@ export async function registerRoutes(
       res.json(safeUser);
     } catch (error) {
       res.status(500).json({ message: "خطأ في تعديل الرصيد" });
+    }
+  });
+
+  // Branch routes (manager only)
+  app.get("/api/branches", requireBranchManagerOrAbove, async (_req, res) => {
+    try {
+      const branches = await storage.getAllBranches();
+      res.json(branches);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في جلب الفروع" });
+    }
+  });
+
+  app.post("/api/branches", requireManager, async (req, res) => {
+    const parsed = createBranchSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "بيانات غير صالحة", errors: parsed.error.errors });
+    }
+
+    try {
+      const branch = await storage.createBranch({
+        name: parsed.data.name,
+        code: parsed.data.code,
+      });
+      res.status(201).json(branch);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في إنشاء الفرع" });
+    }
+  });
+
+  app.patch("/api/branches/:id", requireManager, async (req, res) => {
+    const { id } = req.params;
+    const { name, code } = req.body;
+
+    try {
+      const branch = await storage.updateBranch(id, { name, code });
+      if (!branch) {
+        return res.status(404).json({ message: "الفرع غير موجود" });
+      }
+      res.json(branch);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في تحديث الفرع" });
+    }
+  });
+
+  app.delete("/api/branches/:id", requireManager, async (req, res) => {
+    const { id } = req.params;
+
+    try {
+      const deleted = await storage.deleteBranch(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "الفرع غير موجود" });
+      }
+      res.json({ message: "تم حذف الفرع بنجاح" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في حذف الفرع" });
+    }
+  });
+
+  // Branch employees (for branch managers)
+  app.get("/api/branches/:branchId/employees", requireBranchManagerOrAbove, async (req, res) => {
+    const { branchId } = req.params;
+    
+    // Branch managers can only see their own branch
+    if (req.user?.role === "branch_manager" && req.user?.branchId !== branchId) {
+      return res.status(403).json({ message: "لا يمكنك الوصول لهذا الفرع" });
+    }
+
+    try {
+      const employees = await storage.getUsersByBranch(branchId);
+      const safeEmployees = employees.map(({ password: _, ...emp }) => emp);
+      res.json(safeEmployees);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في جلب موظفي الفرع" });
+    }
+  });
+
+  // Branch pending requests (for branch managers)
+  app.get("/api/branches/:branchId/withdrawal-requests/pending", requireBranchManagerOrAbove, async (req, res) => {
+    const { branchId } = req.params;
+    
+    // Branch managers can only see their own branch
+    if (req.user?.role === "branch_manager" && req.user?.branchId !== branchId) {
+      return res.status(403).json({ message: "لا يمكنك الوصول لهذا الفرع" });
+    }
+
+    try {
+      const requests = await storage.getPendingWithdrawalRequestsByBranch(branchId);
+      res.json(requests);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في جلب طلبات الفرع" });
     }
   });
 
@@ -488,7 +589,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/withdrawal-requests/:id/process", requireManager, async (req, res) => {
+  app.post("/api/withdrawal-requests/:id/process", requireBranchManagerOrAbove, async (req, res) => {
     const { id } = req.params;
     const parsed = processRequestSchema.safeParse(req.body);
     
@@ -509,6 +610,13 @@ export async function registerRoutes(
       const employee = await storage.getUser(request.userId);
       if (!employee) {
         return res.status(404).json({ message: "الموظف غير موجود" });
+      }
+
+      // Branch managers can only process requests for their branch employees
+      if (req.user?.role === "branch_manager") {
+        if (employee.branchId !== req.user.branchId) {
+          return res.status(403).json({ message: "لا يمكنك معالجة طلبات موظفين من فرع آخر" });
+        }
       }
 
       const { action, notes, modifiedAmount } = parsed.data;

@@ -2,7 +2,10 @@
 
 ## Overview
 
-This is an employee credit management system for HSN GROUP, designed to manage employee balances, withdrawal requests, and financial transactions. The system supports two user roles: employees who can view their balance and request withdrawals, and managers who can approve/reject requests and manage employee accounts.
+This is an employee credit management system for HSN GROUP, designed to manage employee balances, withdrawal requests, and financial transactions. The system supports a three-tier hierarchical permission structure:
+- **Main Manager (manager)**: Full access to all branches, can create/edit/delete branches, manage all employees
+- **Branch Manager (branch_manager)**: Manages specific branch employees, can approve/reject withdrawal requests for their branch
+- **Employee (employee)**: Can view balance, request withdrawals, view statements, edit profile
 
 The application is built as a full-stack TypeScript application with a React frontend and Express backend, featuring bilingual support (Arabic/English) with RTL layout support for Arabic.
 
@@ -72,7 +75,8 @@ Preferred communication style: Simple, everyday language.
 - Integration with Zod for validation
 
 **Schema Design**:
-- `users` table: Employee and manager accounts with role-based access
+- `users` table: Employee and manager accounts with role-based access (includes branchId for branch assignment)
+- `branches` table: Branch management with name and code
 - `transactions` table: All financial transactions (withdrawals, deposits, adjustments, service fees)
 - `withdrawal_requests` table: Employee withdrawal requests with approval workflow
 - `service_fee_log` table: Monthly service fee tracking
@@ -91,9 +95,10 @@ Preferred communication style: Simple, everyday language.
 - Timing-safe password comparison
 
 **Authorization**:
-- Role-based access control (employee vs manager)
+- Three-tier role-based access control (manager → branch_manager → employee)
 - Protected routes requiring authentication
 - Role-specific API endpoints
+- Branch-scoped data access for branch managers
 
 ### File Management
 

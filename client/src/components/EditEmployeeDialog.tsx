@@ -5,22 +5,31 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+
+interface Branch {
+  id: string;
+  name: string;
+  code: string;
+}
 
 interface Employee {
   id: string;
   name: string;
   employeeNumber: string;
   username?: string;
-  role: "employee" | "manager";
+  role: "employee" | "branch_manager" | "manager";
   status: "active" | "inactive";
+  branchId?: string | null;
 }
 
 interface EditEmployeeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   employee: Employee | null;
-  onSave: (data: { id: string; name: string; employeeNumber: string; password?: string; role: string }) => void;
+  onSave: (data: { id: string; name: string; employeeNumber: string; password?: string; role: string; branchId?: string }) => void;
   isLoading?: boolean;
+  branches?: Branch[];
 }
 
 export default function EditEmployeeDialog({ 
@@ -28,18 +37,22 @@ export default function EditEmployeeDialog({
   onOpenChange, 
   employee, 
   onSave, 
-  isLoading 
+  isLoading,
+  branches = []
 }: EditEmployeeDialogProps) {
+  const { toast } = useToast();
   const [name, setName] = useState("");
   const [employeeNumber, setEmployeeNumber] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"employee" | "manager">("employee");
+  const [role, setRole] = useState<"employee" | "branch_manager" | "manager">("employee");
+  const [branchId, setBranchId] = useState<string>("");
 
   useEffect(() => {
     if (employee) {
       setName(employee.name);
       setEmployeeNumber(employee.employeeNumber);
       setRole(employee.role);
+      setBranchId(employee.branchId || "none");
       setPassword("");
     }
   }, [employee]);
@@ -49,12 +62,22 @@ export default function EditEmployeeDialog({
     
     if (!employee) return;
 
+    if (role === 'branch_manager' && (!branchId || branchId === 'none')) {
+      toast({
+        title: "خطأ",
+        description: "يجب تحديد الفرع لمدير الفرع",
+        variant: "destructive",
+      });
+      return;
+    }
+
     onSave({
       id: employee.id,
       name,
       employeeNumber,
       password: password || undefined,
       role,
+      branchId: branchId && branchId !== 'none' ? branchId : undefined,
     });
   };
 
@@ -105,16 +128,35 @@ export default function EditEmployeeDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-role">الصلاحية</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as "employee" | "manager")} disabled={isLoading}>
+              <Select value={role} onValueChange={(v) => setRole(v as "employee" | "branch_manager" | "manager")} disabled={isLoading}>
                 <SelectTrigger data-testid="select-edit-role">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="employee">موظف</SelectItem>
-                  <SelectItem value="manager">مدير</SelectItem>
+                  <SelectItem value="branch_manager">مدير فرع</SelectItem>
+                  <SelectItem value="manager">مدير عام</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {(role === 'employee' || role === 'branch_manager') && branches.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-branch">الفرع</Label>
+                <Select value={branchId} onValueChange={setBranchId} disabled={isLoading}>
+                  <SelectTrigger data-testid="select-edit-branch">
+                    <SelectValue placeholder="اختر الفرع" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">بدون فرع</SelectItem>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter className="pt-4 border-t mt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>

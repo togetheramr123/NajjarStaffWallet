@@ -7,10 +7,11 @@ export interface User {
   username: string;
   name: string;
   employeeNumber: string;
-  role: "employee" | "manager";
+  role: "employee" | "branch_manager" | "manager";
   status: "active" | "inactive";
   balance: number;
   profilePicture: string | null;
+  branchId: string | null;
   createdAt: string;
 }
 
