@@ -67,21 +67,19 @@ export default function EmployeeDashboard() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState<SubmittedRequest | null>(null);
 
-  const getInitialTab = () => {
-    if (location === "/withdraw") return "withdraw";
-    if (location === "/transactions") return "overview";
-    if (location === "/balance") return "statement";
-    if (location === "/track") return "track";
+  const getTabFromLocation = (loc: string) => {
+    if (loc === "/withdraw") return "withdraw";
+    if (loc === "/transactions") return "overview";
+    if (loc === "/balance") return "statement";
+    if (loc === "/track") return "track";
     return "overview";
   };
 
-  const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [activeTab, setActiveTab] = useState(() => getTabFromLocation(location));
 
   useEffect(() => {
-    const newTab = getInitialTab();
-    if (newTab !== activeTab) {
-      setActiveTab(newTab);
-    }
+    const newTab = getTabFromLocation(location);
+    setActiveTab(newTab);
   }, [location]);
 
   const { data: balanceData, isLoading: balanceLoading } = useQuery<BalanceData>({

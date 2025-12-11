@@ -77,7 +77,7 @@ export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarP
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/60">
-            {userRole === 'manager' ? 'قائمة المدير' : 'القائمة الرئيسية'}
+            {(userRole === 'manager' || userRole === 'branch_manager') ? 'قائمة المدير' : 'القائمة الرئيسية'}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -113,7 +113,7 @@ export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarP
               {userName}
             </span>
             <span className="text-xs text-sidebar-foreground/60">
-              {userRole === 'manager' ? 'مدير' : 'موظف'}
+              {userRole === 'manager' ? 'المدير العام' : userRole === 'branch_manager' ? 'مدير فرع' : 'موظف'}
             </span>
           </div>
           {userRole === 'employee' && (

@@ -67,7 +67,7 @@ function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => v
   }, [pendingData]);
 
   useEffect(() => {
-    if (location === "/" && user.role === "manager") {
+    if (location === "/" && (user.role === "manager" || user.role === "branch_manager")) {
       setLocation("/manager");
     } else if (location === "/" && user.role === "employee") {
       setLocation("/dashboard");
