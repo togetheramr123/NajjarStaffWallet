@@ -35,6 +35,21 @@ interface Transaction {
   processingNotes: string | null;
 }
 
+interface WithdrawalRequest {
+  id: string;
+  userId: string;
+  amount: number;
+  beneficiary: "self" | "family";
+  notes: string | null;
+  attachmentPath: string | null;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  processedBy: string | null;
+  processedAt: string | null;
+  processingNotes: string | null;
+  modifiedAmount: number | null;
+}
+
 interface SubmittedRequest {
   id: string;
   employeeName: string;
@@ -77,6 +92,11 @@ export default function EmployeeDashboard() {
   const { data: transactions, isLoading: transactionsLoading } = useQuery<Transaction[]>({
     queryKey: ["/api/transactions"],
     refetchInterval: 30000,
+  });
+
+  const { data: withdrawalRequests, isLoading: requestsLoading } = useQuery<WithdrawalRequest[]>({
+    queryKey: ["/api/withdrawal-requests"],
+    refetchInterval: 15000,
   });
 
   const withdrawMutation = useMutation({
@@ -214,24 +234,24 @@ export default function EmployeeDashboard() {
         </TabsContent>
 
         <TabsContent value="track" className="mt-4">
-          {transactionsLoading ? (
+          {requestsLoading ? (
             <div className="flex items-center justify-center h-32">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : (
             <RequestTracker
-              requests={formattedTransactions
-                .filter((t) => t.type === "withdrawal")
-                .map((t) => ({
-                  id: t.id,
-                  amount: t.amount,
-                  beneficiary: t.beneficiary,
-                  status: t.status as "pending" | "approved" | "rejected",
-                  description: t.description,
-                  createdAt: t.date,
-                  hasAttachment: t.hasAttachment,
-                  attachmentPath: t.attachmentPath,
-                }))}
+              requests={(withdrawalRequests || []).map((r) => ({
+                id: r.id,
+                amount: r.modifiedAmount || r.amount,
+                beneficiary: r.beneficiary,
+                status: r.status,
+                description: r.notes || undefined,
+                createdAt: r.createdAt,
+                processedAt: r.processedAt || undefined,
+                processingNotes: r.processingNotes || undefined,
+                hasAttachment: !!r.attachmentPath,
+                attachmentPath: r.attachmentPath || undefined,
+              }))}
               onViewAttachment={handleViewAttachment}
             />
           )}
