@@ -3,6 +3,7 @@ import TransactionHistory from "@/components/TransactionHistory";
 import WithdrawalForm from "@/components/WithdrawalForm";
 import AccountStatement from "@/components/AccountStatement";
 import WithdrawalRequestReceipt from "@/components/WithdrawalRequestReceipt";
+import RequestTracker from "@/components/RequestTracker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -55,6 +56,7 @@ export default function EmployeeDashboard() {
     if (location === "/withdraw") return "withdraw";
     if (location === "/transactions") return "overview";
     if (location === "/balance") return "statement";
+    if (location === "/track") return "track";
     return "overview";
   };
 
@@ -178,9 +180,12 @@ export default function EmployeeDashboard() {
       <BalanceCard currentBalance={currentBalance} pendingAmount={pendingAmount} monthlyFee={monthlyFee} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview" data-testid="tab-overview">
             سجل المعاملات
+          </TabsTrigger>
+          <TabsTrigger value="track" data-testid="tab-track">
+            متابعة الطلبات
           </TabsTrigger>
           <TabsTrigger value="statement" data-testid="tab-statement">
             كشف الحساب
@@ -204,6 +209,30 @@ export default function EmployeeDashboard() {
                   handleViewAttachment(transaction.attachmentPath);
                 }
               }}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="track" className="mt-4">
+          {transactionsLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <RequestTracker
+              requests={formattedTransactions
+                .filter((t) => t.type === "withdrawal")
+                .map((t) => ({
+                  id: t.id,
+                  amount: t.amount,
+                  beneficiary: t.beneficiary,
+                  status: t.status as "pending" | "approved" | "rejected",
+                  description: t.description,
+                  createdAt: t.date,
+                  hasAttachment: t.hasAttachment,
+                  attachmentPath: t.attachmentPath,
+                }))}
+              onViewAttachment={handleViewAttachment}
             />
           )}
         </TabsContent>
