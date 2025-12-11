@@ -304,9 +304,7 @@ export default function EmployeesPage() {
         </Tabs>
       ) : (
         <>
-          <div className="flex items-center justify-end">
-            <AddEmployeeDialog onAdd={handleAddEmployee} isLoading={createEmployeeMutation.isPending} branches={branches || []} />
-          </div>
+          {/* Branch Manager View - View Only, No Add/Edit/Balance Adjustment */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -328,21 +326,11 @@ export default function EmployeesPage() {
                 <SelectItem value="inactive">معطل</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-full sm:w-40" data-testid="select-role-filter">
-                <SelectValue placeholder="الصلاحية" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">الكل</SelectItem>
-                <SelectItem value="employee">موظف</SelectItem>
-                <SelectItem value="branch_manager">مدير فرع</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           {filteredEmployees.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              {employees?.length === 0 ? "لا يوجد موظفين مسجلين" : "لا يوجد موظفين مطابقين للبحث"}
+              {employees?.length === 0 ? "لا يوجد موظفين في فرعك" : "لا يوجد موظفين مطابقين للبحث"}
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -359,16 +347,7 @@ export default function EmployeesPage() {
                     joinDate: new Date(employee.createdAt).toISOString().split("T")[0],
                     branchName: getBranchName(employee.branchId),
                   }}
-                  onView={(id) => openEditDialog(id)}
-                  onEdit={(id) => openEditDialog(id)}
-                  onAdjustBalance={(id) => {
-                    const emp = employees?.find((e) => e.id === id);
-                    if (emp) {
-                      setSelectedEmployee(emp);
-                      setAdjustDialogOpen(true);
-                    }
-                  }}
-                  onToggleStatus={handleToggleStatus}
+                  viewOnly={true}
                 />
               ))}
             </div>

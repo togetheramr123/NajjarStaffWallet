@@ -18,10 +18,11 @@ interface Employee {
 
 interface EmployeeCardProps {
   employee: Employee;
-  onView: (id: string) => void;
-  onEdit: (id: string) => void;
-  onAdjustBalance: (id: string) => void;
-  onToggleStatus: (id: string) => void;
+  onView?: (id: string) => void;
+  onEdit?: (id: string) => void;
+  onAdjustBalance?: (id: string) => void;
+  onToggleStatus?: (id: string) => void;
+  viewOnly?: boolean;
 }
 
 export default function EmployeeCard({ 
@@ -29,7 +30,8 @@ export default function EmployeeCard({
   onView, 
   onEdit, 
   onAdjustBalance,
-  onToggleStatus 
+  onToggleStatus,
+  viewOnly = false
 }: EmployeeCardProps) {
   const initials = employee.name.split(' ').map(n => n[0]).join('').slice(0, 2);
 
@@ -50,31 +52,33 @@ export default function EmployeeCard({
               <p className="text-xs text-muted-foreground">#{employee.employeeNumber}</p>
             </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" data-testid={`button-menu-${employee.id}`}>
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onView(employee.id)}>
-                <Eye className="h-4 w-4 ml-2" />
-                عرض التفاصيل
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onEdit(employee.id)}>
-                <Edit className="h-4 w-4 ml-2" />
-                تعديل البيانات
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onAdjustBalance(employee.id)}>
-                <Wallet className="h-4 w-4 ml-2" />
-                تعديل الرصيد
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onToggleStatus(employee.id)} className="text-destructive">
-                <Ban className="h-4 w-4 ml-2" />
-                {employee.status === 'active' ? 'تعطيل الحساب' : 'تفعيل الحساب'}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {!viewOnly && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" data-testid={`button-menu-${employee.id}`}>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onView?.(employee.id)}>
+                  <Eye className="h-4 w-4 ml-2" />
+                  عرض التفاصيل
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onEdit?.(employee.id)}>
+                  <Edit className="h-4 w-4 ml-2" />
+                  تعديل البيانات
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onAdjustBalance?.(employee.id)}>
+                  <Wallet className="h-4 w-4 ml-2" />
+                  تعديل الرصيد
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onToggleStatus?.(employee.id)} className="text-destructive">
+                  <Ban className="h-4 w-4 ml-2" />
+                  {employee.status === 'active' ? 'تعطيل الحساب' : 'تفعيل الحساب'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

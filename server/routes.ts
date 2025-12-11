@@ -276,10 +276,19 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/employees", requireManager, async (_req, res) => {
+  app.get("/api/employees", requireBranchManagerOrAbove, async (req, res) => {
     try {
       const employees = await storage.getAllUsers();
-      const safeEmployees = employees.map(({ password: _, ...emp }) => emp);
+      let filteredEmployees = employees;
+      
+      // Branch managers can only see employees from their branch
+      if (req.user?.role === "branch_manager" && req.user?.branchId) {
+        filteredEmployees = employees.filter(emp => 
+          emp.branchId === req.user!.branchId && emp.role === "employee"
+        );
+      }
+      
+      const safeEmployees = filteredEmployees.map(({ password: _, ...emp }) => emp);
       res.json(safeEmployees);
     } catch (error) {
       res.status(500).json({ message: "خطأ في جلب الموظفين" });
@@ -560,10 +569,17 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/withdrawal-requests/pending", requireManager, async (_req, res) => {
+  app.get("/api/withdrawal-requests/pending", requireBranchManagerOrAbove, async (req, res) => {
     try {
-      const requests = await storage.getPendingWithdrawalRequests();
-      res.json(requests.map(r => ({
+      const allRequests = await storage.getPendingWithdrawalRequests();
+      
+      // Branch managers can only see pending requests from their branch employees
+      let filteredRequests = allRequests;
+      if (req.user?.role === "branch_manager" && req.user?.branchId) {
+        filteredRequests = allRequests.filter(r => r.user.branchId === req.user!.branchId);
+      }
+      
+      res.json(filteredRequests.map(r => ({
         id: r.id,
         employeeName: r.user.name,
         employeeId: r.user.employeeNumber,
@@ -580,10 +596,21 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/withdrawal-requests/all", requireManager, async (_req, res) => {
+  app.get("/api/withdrawal-requests/all", requireBranchManagerOrAbove, async (req, res) => {
     try {
-      const requests = await storage.getWithdrawalRequests();
-      res.json(requests);
+      const allRequests = await storage.getWithdrawalRequests();
+      
+      // Branch managers can only see requests from their branch employees
+      let filteredRequests = allRequests;
+      if (req.user?.role === "branch_manager" && req.user?.branchId) {
+        const branchEmployees = await storage.getAllUsers();
+        const branchEmployeeIds = branchEmployees
+          .filter(emp => emp.branchId === req.user!.branchId)
+          .map(emp => emp.id);
+        filteredRequests = allRequests.filter(r => branchEmployeeIds.includes(r.userId));
+      }
+      
+      res.json(filteredRequests);
     } catch (error) {
       res.status(500).json({ message: "خطأ في جلب الطلبات" });
     }
@@ -694,15 +721,27 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/stats", requireManager, async (_req, res) => {
+  app.get("/api/stats", requireBranchManagerOrAbove, async (req, res) => {
     try {
-      const employees = await storage.getAllUsers();
-      const pendingRequests = await storage.getPendingWithdrawalRequests();
+      const allEmployees = await storage.getAllUsers();
+      const allPendingRequests = await storage.getPendingWithdrawalRequests();
       const allTransactions = await storage.getAllTransactions();
+
+      // Filter for branch managers
+      let employees = allEmployees;
+      let pendingRequests = allPendingRequests;
+      let transactions = allTransactions;
+      
+      if (req.user?.role === "branch_manager" && req.user?.branchId) {
+        employees = allEmployees.filter(e => e.branchId === req.user!.branchId && e.role === "employee");
+        pendingRequests = allPendingRequests.filter(r => r.user.branchId === req.user!.branchId);
+        const branchEmployeeIds = employees.map(e => e.id);
+        transactions = allTransactions.filter(t => branchEmployeeIds.includes(t.userId));
+      }
 
       const activeEmployees = employees.filter(e => e.status === "active").length;
       const totalBalance = employees.reduce((sum, e) => sum + e.balance, 0);
-      const approvedThisMonth = allTransactions.filter(t => {
+      const approvedThisMonth = transactions.filter(t => {
         const date = new Date(t.createdAt);
         const now = new Date();
         return t.type === "withdrawal" && 

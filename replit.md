@@ -3,9 +3,34 @@
 ## Overview
 
 This is an employee credit management system for HSN GROUP, designed to manage employee balances, withdrawal requests, and financial transactions. The system supports a three-tier hierarchical permission structure:
-- **Main Manager (manager)**: Full access to all branches, can create/edit/delete branches, manage all employees
-- **Branch Manager (branch_manager)**: Manages specific branch employees, can approve/reject withdrawal requests for their branch
-- **Employee (employee)**: Can view balance, request withdrawals, view statements, edit profile
+
+### Permission Structure
+
+**Main Manager (manager)** - Full system access:
+- ✅ Create/edit/delete branches
+- ✅ Add/edit/delete all employees
+- ✅ Adjust employee balances (add/subtract)
+- ✅ Approve/reject all withdrawal requests
+- ✅ View all employees and transactions
+- ✅ Access all reports and statistics
+- ✅ Process service fees
+
+**Branch Manager (branch_manager)** - Limited to their assigned branch:
+- ✅ View employees in their branch only
+- ✅ Approve/reject withdrawal requests for their branch employees
+- ✅ View branch statistics
+- ❌ Cannot add new employees
+- ❌ Cannot edit employee data
+- ❌ Cannot adjust employee balances
+- ❌ Cannot manage branches
+- ❌ Cannot see other branches' data
+
+**Employee (employee)**:
+- ✅ View own balance
+- ✅ Request withdrawals
+- ✅ View transaction history
+- ✅ View account statements
+- ✅ Edit own profile
 
 The application is built as a full-stack TypeScript application with a React frontend and Express backend, featuring bilingual support (Arabic/English) with RTL layout support for Arabic.
 
