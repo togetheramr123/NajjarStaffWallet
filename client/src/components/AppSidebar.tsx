@@ -50,10 +50,31 @@ const managerMenuItems = [
   { title: "الإعدادات", url: "/settings", icon: Settings },
 ];
 
+// Branch manager has both management features AND personal account features
+const branchManagerMenuItems = [
+  { title: "لوحة التحكم", url: "/manager", icon: LayoutDashboard },
+  { title: "إدارة الموظفين", url: "/employees", icon: Users },
+  { title: "الطلبات المعلقة", url: "/approvals", icon: ClipboardCheck },
+];
+
+const branchManagerPersonalItems = [
+  { title: "رصيدي", url: "/my-balance", icon: Wallet },
+  { title: "طلب سحب", url: "/my-withdraw", icon: CreditCard },
+  { title: "سجل معاملاتي", url: "/my-transactions", icon: History },
+];
+
 export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarProps) {
   const [location] = useLocation();
   const { setOpenMobile, isMobile } = useSidebar();
-  const menuItems = (userRole === 'manager' || userRole === 'branch_manager') ? managerMenuItems : employeeMenuItems;
+  
+  // Determine which menu items to show based on role
+  const getMenuItems = () => {
+    if (userRole === 'manager') return managerMenuItems;
+    if (userRole === 'branch_manager') return branchManagerMenuItems;
+    return employeeMenuItems;
+  };
+  
+  const menuItems = getMenuItems();
   const initials = userName.split(' ').map(n => n[0]).join('').slice(0, 2);
 
   const handleMenuClick = () => {
@@ -77,7 +98,7 @@ export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarP
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/60">
-            {(userRole === 'manager' || userRole === 'branch_manager') ? 'قائمة المدير' : 'القائمة الرئيسية'}
+            {userRole === 'manager' ? 'قائمة المدير' : userRole === 'branch_manager' ? 'إدارة الفرع' : 'القائمة الرئيسية'}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -99,6 +120,34 @@ export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarP
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        
+        {/* Personal account section for branch managers */}
+        {userRole === 'branch_manager' && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-sidebar-foreground/60">
+              حسابي الشخصي
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {branchManagerPersonalItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={location === item.url}
+                      data-testid={`nav-${item.url.slice(1)}`}
+                      onClick={handleMenuClick}
+                    >
+                      <Link href={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
@@ -116,7 +165,7 @@ export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarP
               {userRole === 'manager' ? 'المدير العام' : userRole === 'branch_manager' ? 'مدير فرع' : 'موظف'}
             </span>
           </div>
-          {userRole === 'employee' && (
+          {(userRole === 'employee' || userRole === 'branch_manager') && (
             <NotificationsPanel />
           )}
         </div>

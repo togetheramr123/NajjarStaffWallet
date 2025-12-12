@@ -17,11 +17,12 @@ import LoginPage from "@/pages/LoginPage";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth, type User } from "@/contexts/AuthContext";
+import BranchManagerPersonalPage from "@/pages/BranchManagerPersonalPage";
 
 export { useAuth };
 
 function Router({ userRole }: { userRole: "employee" | "branch_manager" | "manager" }) {
-  if (userRole === "manager" || userRole === "branch_manager") {
+  if (userRole === "manager") {
     return (
       <Switch>
         <Route path="/" component={ManagerDashboard} />
@@ -31,6 +32,23 @@ function Router({ userRole }: { userRole: "employee" | "branch_manager" | "manag
         <Route path="/operations" component={ManagerDashboard} />
         <Route path="/reports" component={ManagerDashboard} />
         <Route path="/settings" component={ManagerDashboard} />
+        <Route path="/profile" component={ProfilePage} />
+        <Route component={NotFound} />
+      </Switch>
+    );
+  }
+  
+  if (userRole === "branch_manager") {
+    return (
+      <Switch>
+        <Route path="/" component={ManagerDashboard} />
+        <Route path="/manager" component={ManagerDashboard} />
+        <Route path="/employees" component={EmployeesPage} />
+        <Route path="/approvals" component={ApprovalsPage} />
+        {/* Branch manager personal account pages */}
+        <Route path="/my-balance" component={BranchManagerPersonalPage} />
+        <Route path="/my-withdraw" component={BranchManagerPersonalPage} />
+        <Route path="/my-transactions" component={BranchManagerPersonalPage} />
         <Route path="/profile" component={ProfilePage} />
         <Route component={NotFound} />
       </Switch>
@@ -56,7 +74,7 @@ function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => v
 
   const { data: pendingData } = useQuery({
     queryKey: ["/api/withdrawal-requests/pending"],
-    enabled: user.role === "manager",
+    enabled: user.role === "manager" || user.role === "branch_manager",
     refetchInterval: 30000,
   });
 
@@ -88,6 +106,9 @@ function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => v
       "/reports": "التقارير",
       "/settings": "الإعدادات",
       "/profile": "الملف الشخصي",
+      "/my-balance": "رصيدي",
+      "/my-withdraw": "طلب سحب",
+      "/my-transactions": "سجل معاملاتي",
     };
     return titles[location] || "نظام الرصيد";
   };
