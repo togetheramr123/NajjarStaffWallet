@@ -384,6 +384,65 @@ export async function registerRoutes(
     }
   });
 
+  // Bulk balance adjustment (manager only)
+  const bulkBalanceSchema = z.object({
+    employeeIds: z.array(z.string()).min(1),
+    amount: z.number().positive(),
+    type: z.enum(["add", "subtract"]),
+    reason: z.string().min(1),
+  });
+
+  app.post("/api/employees/bulk-balance", requireManager, async (req, res) => {
+    const parsed = bulkBalanceSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "بيانات غير صالحة", errors: parsed.error.errors });
+    }
+
+    try {
+      const { employeeIds, amount, type, reason } = parsed.data;
+      const adjustAmount = type === "add" ? amount : -amount;
+      const results: { success: string[]; failed: string[] } = { success: [], failed: [] };
+
+      for (const employeeId of employeeIds) {
+        const user = await storage.getUser(employeeId);
+        if (!user) {
+          results.failed.push(employeeId);
+          continue;
+        }
+
+        if (type === "subtract" && user.balance < amount) {
+          results.failed.push(employeeId);
+          continue;
+        }
+
+        await storage.updateUserBalance(employeeId, adjustAmount);
+
+        await storage.createTransaction({
+          userId: employeeId,
+          type: "adjustment",
+          amount,
+          status: "approved",
+          description: reason,
+          beneficiary: null,
+          attachmentPath: null,
+          processedBy: req.user!.id,
+          processedAt: new Date(),
+          processingNotes: type === "add" ? "إضافة رصيد جماعي" : "خصم رصيد جماعي",
+        });
+
+        results.success.push(employeeId);
+      }
+
+      res.json({
+        message: `تم تعديل رصيد ${results.success.length} موظف`,
+        success: results.success.length,
+        failed: results.failed.length,
+      });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في تعديل الرصيد الجماعي" });
+    }
+  });
+
   // Branch routes (manager only)
   app.get("/api/branches", requireBranchManagerOrAbove, async (_req, res) => {
     try {

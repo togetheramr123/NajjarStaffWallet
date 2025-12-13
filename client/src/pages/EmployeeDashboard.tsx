@@ -9,7 +9,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, CreditCard, ClipboardList, History, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 
@@ -198,18 +198,38 @@ export default function EmployeeDashboard() {
       <BalanceCard currentBalance={currentBalance} pendingAmount={pendingAmount} monthlyFee={monthlyFee} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview" data-testid="tab-overview">
-            سجل المعاملات
+        <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted/50">
+          <TabsTrigger 
+            value="withdraw" 
+            data-testid="tab-withdraw"
+            className="flex flex-col gap-1 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            <CreditCard className="h-5 w-5" />
+            <span className="text-xs font-medium">طلب سحب</span>
           </TabsTrigger>
-          <TabsTrigger value="track" data-testid="tab-track">
-            متابعة الطلبات
+          <TabsTrigger 
+            value="track" 
+            data-testid="tab-track"
+            className="flex flex-col gap-1 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            <ClipboardList className="h-5 w-5" />
+            <span className="text-xs font-medium">متابعة الطلبات</span>
           </TabsTrigger>
-          <TabsTrigger value="statement" data-testid="tab-statement">
-            كشف الحساب
+          <TabsTrigger 
+            value="overview" 
+            data-testid="tab-overview"
+            className="flex flex-col gap-1 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            <History className="h-5 w-5" />
+            <span className="text-xs font-medium">سجل المعاملات</span>
           </TabsTrigger>
-          <TabsTrigger value="withdraw" data-testid="tab-withdraw">
-            طلب سحب جديد
+          <TabsTrigger 
+            value="statement" 
+            data-testid="tab-statement"
+            className="flex flex-col gap-1 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            <FileText className="h-5 w-5" />
+            <span className="text-xs font-medium">كشف الحساب</span>
           </TabsTrigger>
         </TabsList>
 

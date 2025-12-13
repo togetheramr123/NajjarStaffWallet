@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import EmployeeCard from "@/components/EmployeeCard";
 import AddEmployeeDialog from "@/components/AddEmployeeDialog";
 import AdjustBalanceDialog from "@/components/AdjustBalanceDialog";
 import EditEmployeeDialog from "@/components/EditEmployeeDialog";
 import BranchManagement from "@/components/BranchManagement";
+import BulkBalanceDialog from "@/components/BulkBalanceDialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -138,6 +139,27 @@ export default function EmployeesPage() {
     },
   });
 
+  const bulkBalanceMutation = useMutation({
+    mutationFn: async (data: { employeeIds: string[]; amount: number; type: "add" | "subtract"; reason: string }) => {
+      const res = await apiRequest("POST", "/api/employees/bulk-balance", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      toast({
+        title: "تم التعديل",
+        description: data.message || "تم تعديل الرصيد الجماعي بنجاح",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const filteredEmployees = employees?.filter((emp) => {
     const matchesSearch = emp.name.includes(searchTerm) || emp.employeeNumber.includes(searchTerm);
     const matchesStatus = statusFilter === "all" || emp.status === statusFilter;
@@ -150,6 +172,22 @@ export default function EmployeesPage() {
     if (!branchId) return "بدون فرع";
     return branches?.find((b) => b.id === branchId)?.name || "غير معروف";
   };
+
+  const bulkBalanceEmployees = useMemo(() => {
+    const getBranch = (branchId: string | null) => {
+      if (!branchId) return "بدون فرع";
+      return branches?.find((b) => b.id === branchId)?.name || "غير معروف";
+    };
+    return (employees || [])
+      .filter(e => e.role !== "manager")
+      .map(e => ({
+        id: e.id,
+        name: e.name,
+        employeeNumber: e.employeeNumber,
+        balance: e.balance,
+        branchName: getBranch(e.branchId),
+      }));
+  }, [employees, branches]);
 
   const handleAddEmployee = (data: { name: string; employeeNumber: string; username: string; password: string; initialBalance: number; role: "employee" | "branch_manager" | "manager"; branchId?: string }) => {
     createEmployeeMutation.mutate(data);
@@ -212,7 +250,12 @@ export default function EmployeesPage() {
           </TabsList>
 
           <TabsContent value="employees" className="mt-4 space-y-4">
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-end gap-2 flex-wrap">
+              <BulkBalanceDialog
+                employees={bulkBalanceEmployees}
+                onSubmit={(data) => bulkBalanceMutation.mutate(data)}
+                isLoading={bulkBalanceMutation.isPending}
+              />
               <AddEmployeeDialog onAdd={handleAddEmployee} isLoading={createEmployeeMutation.isPending} branches={branches || []} />
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
