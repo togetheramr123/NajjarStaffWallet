@@ -1,15 +1,18 @@
+import { useState } from "react";
 import StatCard from "@/components/StatCard";
 import ApprovalCard from "@/components/ApprovalCard";
+import AdjustBalanceDialog from "@/components/AdjustBalanceDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Wallet, Clock, CheckCircle, TrendingUp, ArrowLeft, Loader2 } from "lucide-react";
+import { Users, Wallet, Clock, CheckCircle, TrendingUp, ArrowLeft, Loader2, UserCircle, Plus, Minus } from "lucide-react";
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 interface Stats {
   totalEmployees: number;
@@ -42,10 +45,41 @@ interface Transaction {
 
 export default function ManagerDashboard() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [adjustBalanceOpen, setAdjustBalanceOpen] = useState(false);
 
   const { data: stats, isLoading: statsLoading } = useQuery<Stats>({
     queryKey: ["/api/stats"],
     refetchInterval: 30000,
+  });
+
+  const { data: balanceData, isLoading: balanceLoading } = useQuery<{ currentBalance: number }>({
+    queryKey: ["/api/balance"],
+    refetchInterval: 30000,
+  });
+
+  const adjustBalanceMutation = useMutation({
+    mutationFn: async (data: { employeeId: string; amount: number; type: 'add' | 'subtract'; reason: string }) => {
+      const res = await apiRequest("POST", `/api/employees/${data.employeeId}/balance`, {
+        amount: data.amount,
+        type: data.type,
+        reason: data.reason,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/balance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions/all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const { data: pendingRequests, isLoading: pendingLoading } = useQuery<PendingRequest[]>({
@@ -195,6 +229,45 @@ export default function ManagerDashboard() {
           variant="success"
         />
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <UserCircle className="h-5 w-5 text-primary" />
+            <CardTitle className="text-lg">رصيدي الشخصي</CardTitle>
+          </div>
+          <Button 
+            onClick={() => setAdjustBalanceOpen(true)}
+            data-testid="button-adjust-my-balance"
+          >
+            <Wallet className="h-4 w-4 ml-2" />
+            تعديل رصيدي
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-6">
+            <div className="text-center">
+              <p className="text-muted-foreground text-sm mb-1">الرصيد الحالي</p>
+              {balanceLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+              ) : (
+                <p className="text-2xl font-bold text-primary" data-testid="text-manager-balance">
+                  {(balanceData?.currentBalance || user?.balance || 0).toLocaleString("ar-EG")} ج.م
+                </p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <AdjustBalanceDialog
+        open={adjustBalanceOpen}
+        onOpenChange={setAdjustBalanceOpen}
+        employeeName={user?.name || "المدير"}
+        employeeId={user?.id || ""}
+        currentBalance={balanceData?.currentBalance || user?.balance || 0}
+        onAdjust={(data) => adjustBalanceMutation.mutate(data)}
+      />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
