@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, Minus, Users, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
@@ -42,19 +42,23 @@ export default function BulkBalanceDialog({
   const [reason, setReason] = useState('');
   const { toast } = useToast();
 
-  const handleToggleEmployee = (id: string) => {
-    setSelectedIds(prev => 
-      prev.includes(id) 
-        ? prev.filter(x => x !== id)
-        : [...prev, id]
-    );
+  const employeeIds = useMemo(() => employees.map(e => e.id), [employees]);
+
+  const isAllSelected = selectedIds.length === employees.length && employees.length > 0;
+
+  const handleToggleEmployee = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds(prev => [...prev, id]);
+    } else {
+      setSelectedIds(prev => prev.filter(x => x !== id));
+    }
   };
 
   const handleSelectAll = () => {
-    if (selectedIds.length === employees.length) {
+    if (isAllSelected) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(employees.map(e => e.id));
+      setSelectedIds([...employeeIds]);
     }
   };
 
@@ -117,10 +121,20 @@ export default function BulkBalanceDialog({
     setType('add');
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      setSelectedIds([]);
+      setAmount('');
+      setReason('');
+      setType('add');
+    }
+  };
+
   const totalChange = (parseFloat(amount) || 0) * selectedIds.length;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2" data-testid="button-bulk-balance">
           <Users className="h-4 w-4" />
@@ -137,7 +151,7 @@ export default function BulkBalanceDialog({
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <Label>اختر الموظفين</Label>
                 <Button 
                   type="button" 
@@ -146,42 +160,41 @@ export default function BulkBalanceDialog({
                   onClick={handleSelectAll}
                   data-testid="button-select-all"
                 >
-                  {selectedIds.length === employees.length ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+                  {isAllSelected ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
                 </Button>
               </div>
               <ScrollArea className="h-48 rounded-md border p-2">
                 <div className="space-y-2">
-                  {employees.map((employee) => (
-                    <label
-                      key={employee.id}
-                      htmlFor={`emp-check-${employee.id}`}
-                      className="flex items-center gap-3 p-2 rounded-md hover-elevate cursor-pointer"
-                      data-testid={`employee-row-${employee.id}`}
-                    >
-                      <Checkbox
-                        id={`emp-check-${employee.id}`}
-                        checked={selectedIds.includes(employee.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedIds(prev => [...prev, employee.id]);
-                          } else {
-                            setSelectedIds(prev => prev.filter(id => id !== employee.id));
-                          }
-                        }}
-                        data-testid={`checkbox-employee-${employee.id}`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{employee.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {employee.employeeNumber}
-                          {employee.branchName && ` - ${employee.branchName}`}
-                        </p>
+                  {employees.map((employee) => {
+                    const isChecked = selectedIds.includes(employee.id);
+                    return (
+                      <div
+                        key={employee.id}
+                        className="flex items-center gap-3 p-2 rounded-md hover-elevate"
+                        data-testid={`employee-row-${employee.id}`}
+                      >
+                        <Checkbox
+                          id={`bulk-emp-${employee.id}`}
+                          checked={isChecked}
+                          onCheckedChange={(checked) => handleToggleEmployee(employee.id, !!checked)}
+                          data-testid={`checkbox-employee-${employee.id}`}
+                        />
+                        <label 
+                          htmlFor={`bulk-emp-${employee.id}`}
+                          className="flex-1 min-w-0 cursor-pointer"
+                        >
+                          <p className="text-sm font-medium truncate">{employee.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {employee.employeeNumber}
+                            {employee.branchName && ` - ${employee.branchName}`}
+                          </p>
+                        </label>
+                        <Badge variant="secondary" className="shrink-0">
+                          {employee.balance.toLocaleString('ar-EG')} ج.م
+                        </Badge>
                       </div>
-                      <Badge variant="secondary" className="shrink-0">
-                        {employee.balance.toLocaleString('ar-EG')} ج.م
-                      </Badge>
-                    </label>
-                  ))}
+                    );
+                  })}
                 </div>
               </ScrollArea>
               {selectedIds.length > 0 && (
@@ -235,7 +248,7 @@ export default function BulkBalanceDialog({
 
             {selectedIds.length > 0 && amount && (
               <div className="bg-muted/50 rounded-md p-3">
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between gap-2 text-sm">
                   <span className="text-muted-foreground">إجمالي التعديل</span>
                   <span className={`font-bold ${type === 'add' ? 'text-chart-3' : 'text-destructive'}`}>
                     {type === 'add' ? '+' : '-'}{totalChange.toLocaleString('ar-EG')} ج.م
