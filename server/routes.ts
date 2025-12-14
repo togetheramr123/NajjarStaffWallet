@@ -341,6 +341,37 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/employees/:id", requireManager, async (req, res) => {
+    const { id } = req.params;
+    const currentUser = req.user!;
+
+    // Prevent deleting yourself
+    if (id === currentUser.id) {
+      return res.status(400).json({ message: "لا يمكنك حذف حسابك الخاص" });
+    }
+
+    try {
+      const userToDelete = await storage.getUser(id);
+      if (!userToDelete) {
+        return res.status(404).json({ message: "الموظف غير موجود" });
+      }
+
+      // Only main manager can delete
+      if (currentUser.role !== "manager") {
+        return res.status(403).json({ message: "صلاحيات غير كافية" });
+      }
+
+      const deleted = await storage.deleteUser(id);
+      if (!deleted) {
+        return res.status(500).json({ message: "فشل في حذف الموظف" });
+      }
+
+      res.json({ message: "تم حذف الموظف بنجاح" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في حذف الموظف" });
+    }
+  });
+
   app.post("/api/employees/:id/balance", requireManager, async (req, res) => {
     const { id } = req.params;
     const parsed = adjustBalanceSchema.safeParse(req.body);

@@ -32,6 +32,7 @@ export interface IStorage {
   getUsersByBranch(branchId: string): Promise<User[]>;
   updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
   updateUserBalance(id: string, amount: number): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
   
   getTransactions(userId: string): Promise<Transaction[]>;
   getAllTransactions(): Promise<Transaction[]>;
@@ -128,6 +129,11 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id)).returning();
+    return result.length > 0;
   }
 
   async getTransactions(userId: string): Promise<Transaction[]> {

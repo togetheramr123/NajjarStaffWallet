@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Eye, Edit, Wallet, Ban, Building2, Banknote } from "lucide-react";
+import { MoreVertical, Eye, Edit, Wallet, Ban, Building2, Banknote, Trash2 } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -22,6 +22,7 @@ interface EmployeeCardProps {
   onEdit?: (id: string) => void;
   onAdjustBalance?: (id: string) => void;
   onToggleStatus?: (id: string) => void;
+  onDelete?: (id: string) => void;
   onWithdrawalOnBehalf?: (id: string) => void;
   viewOnly?: boolean;
 }
@@ -32,6 +33,7 @@ export default function EmployeeCard({
   onEdit, 
   onAdjustBalance,
   onToggleStatus,
+  onDelete,
   onWithdrawalOnBehalf,
   viewOnly = false
 }: EmployeeCardProps) {
@@ -78,6 +80,12 @@ export default function EmployeeCard({
                   <Ban className="h-4 w-4 ml-2" />
                   {employee.status === 'active' ? 'تعطيل الحساب' : 'تفعيل الحساب'}
                 </DropdownMenuItem>
+                {onDelete && (
+                  <DropdownMenuItem onClick={() => onDelete(employee.id)} className="text-destructive">
+                    <Trash2 className="h-4 w-4 ml-2" />
+                    حذف الموظف
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}

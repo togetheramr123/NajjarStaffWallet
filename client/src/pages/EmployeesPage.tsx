@@ -9,6 +9,7 @@ import WithdrawalOnBehalfDialog from "@/components/WithdrawalOnBehalfDialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Search, Loader2, Users, Building2 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -43,6 +44,8 @@ export default function EmployeesPage() {
   const [withdrawalOnBehalfDialogOpen, setWithdrawalOnBehalfDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activeTab, setActiveTab] = useState("employees");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState<{id: string, name: string} | null>(null);
   const { toast } = useToast();
 
   const { data: employees, isLoading } = useQuery<Employee[]>({
@@ -185,6 +188,29 @@ export default function EmployeesPage() {
     },
   });
 
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/employees/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف الموظف بنجاح",
+      });
+      setDeleteDialogOpen(false);
+      setEmployeeToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const filteredEmployees = employees?.filter((emp) => {
     const matchesSearch = emp.name.includes(searchTerm) || emp.employeeNumber.includes(searchTerm);
     const matchesStatus = statusFilter === "all" || emp.status === statusFilter;
@@ -239,6 +265,14 @@ export default function EmployeesPage() {
     if (emp) {
       setSelectedEmployee(emp);
       setEditDialogOpen(true);
+    }
+  };
+
+  const handleDeleteEmployee = (id: string) => {
+    const emp = employees?.find((e) => e.id === id);
+    if (emp) {
+      setEmployeeToDelete({ id: emp.id, name: emp.name });
+      setDeleteDialogOpen(true);
     }
   };
 
@@ -360,6 +394,7 @@ export default function EmployeesPage() {
                       }
                     }}
                     onToggleStatus={handleToggleStatus}
+                    onDelete={handleDeleteEmployee}
                   />
                 ))}
               </div>
@@ -461,6 +496,27 @@ export default function EmployeesPage() {
           isLoading={withdrawalOnBehalfMutation.isPending}
         />
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد حذف الموظف</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف الموظف "{employeeToDelete?.name}"؟ هذا الإجراء لا يمكن التراجع عنه.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => employeeToDelete && deleteEmployeeMutation.mutate(employeeToDelete.id)}
+              className="bg-destructive text-destructive-foreground"
+              data-testid="button-confirm-delete-employee"
+            >
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
