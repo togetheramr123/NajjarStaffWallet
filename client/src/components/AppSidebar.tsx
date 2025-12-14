@@ -22,7 +22,8 @@ import {
   Settings,
   LogOut,
   CreditCard,
-  Bell
+  Bell,
+  User
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import logoImage from "@assets/Screenshot_2025-08-19_143408_1764855126982.png";
@@ -39,6 +40,7 @@ const employeeMenuItems = [
   { title: "رصيدي", url: "/balance", icon: Wallet },
   { title: "طلب سحب", url: "/withdraw", icon: CreditCard },
   { title: "سجل المعاملات", url: "/transactions", icon: History },
+  { title: "الملف الشخصي", url: "/profile", icon: User },
 ];
 
 const managerMenuItems = [
@@ -61,6 +63,7 @@ const branchManagerPersonalItems = [
   { title: "رصيدي", url: "/my-balance", icon: Wallet },
   { title: "طلب سحب", url: "/my-withdraw", icon: CreditCard },
   { title: "سجل معاملاتي", url: "/my-transactions", icon: History },
+  { title: "الملف الشخصي", url: "/profile", icon: User },
 ];
 
 export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarProps) {
