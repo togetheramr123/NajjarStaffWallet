@@ -132,6 +132,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<boolean> {
+    // Clear foreign key references before deleting
+    // Clear processedBy references in transactions
+    await db.update(transactions)
+      .set({ processedBy: null })
+      .where(eq(transactions.processedBy, id));
+    
+    // Clear processedBy and createdOnBehalfBy references in withdrawal_requests
+    await db.update(withdrawalRequests)
+      .set({ processedBy: null })
+      .where(eq(withdrawalRequests.processedBy, id));
+    
+    await db.update(withdrawalRequests)
+      .set({ createdOnBehalfBy: null })
+      .where(eq(withdrawalRequests.createdOnBehalfBy, id));
+    
+    // Now delete the user
     const result = await db.delete(users).where(eq(users.id, id)).returning();
     return result.length > 0;
   }
