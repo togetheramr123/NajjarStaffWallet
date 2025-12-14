@@ -147,6 +147,12 @@ export class DatabaseStorage implements IStorage {
       .set({ createdOnBehalfBy: null })
       .where(eq(withdrawalRequests.createdOnBehalfBy, id));
     
+    // Delete related records that reference this user
+    await db.delete(transactions).where(eq(transactions.userId, id));
+    await db.delete(withdrawalRequests).where(eq(withdrawalRequests.userId, id));
+    await db.delete(serviceFeeLog).where(eq(serviceFeeLog.userId, id));
+    await db.delete(notifications).where(eq(notifications.userId, id));
+    
     // Now delete the user
     const result = await db.delete(users).where(eq(users.id, id)).returning();
     return result.length > 0;
