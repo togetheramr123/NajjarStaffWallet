@@ -59,6 +59,7 @@ export const withdrawalRequests = pgTable("withdrawal_requests", {
   processedAt: timestamp("processed_at"),
   processingNotes: text("processing_notes"),
   modifiedAmount: integer("modified_amount"),
+  createdOnBehalfBy: varchar("created_on_behalf_by").references(() => users.id),
 });
 
 export const serviceFeeLog = pgTable("service_fee_log", {

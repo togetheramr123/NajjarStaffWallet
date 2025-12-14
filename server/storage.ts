@@ -41,7 +41,7 @@ export interface IStorage {
   getWithdrawalRequests(userId?: string): Promise<WithdrawalRequest[]>;
   getPendingWithdrawalRequests(): Promise<(WithdrawalRequest & { user: User })[]>;
   getPendingWithdrawalRequestsByBranch(branchId: string): Promise<(WithdrawalRequest & { user: User })[]>;
-  createWithdrawalRequest(data: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'status' | 'processedAt' | 'processedBy' | 'processingNotes' | 'modifiedAmount'>): Promise<WithdrawalRequest>;
+  createWithdrawalRequest(data: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'status' | 'processedAt' | 'processedBy' | 'processingNotes' | 'modifiedAmount' | 'createdOnBehalfBy'> & { createdOnBehalfBy?: string | null }): Promise<WithdrawalRequest>;
   processWithdrawalRequest(id: string, processedBy: string, status: 'approved' | 'rejected', notes?: string, modifiedAmount?: number): Promise<WithdrawalRequest | undefined>;
   
   getPendingAmountForUser(userId: string): Promise<number>;
@@ -190,10 +190,11 @@ export class DatabaseStorage implements IStorage {
     return results.map((r: { request: WithdrawalRequest; user: User }) => ({ ...r.request, user: r.user }));
   }
 
-  async createWithdrawalRequest(data: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'status' | 'processedAt' | 'processedBy' | 'processingNotes' | 'modifiedAmount'>): Promise<WithdrawalRequest> {
+  async createWithdrawalRequest(data: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'status' | 'processedAt' | 'processedBy' | 'processingNotes' | 'modifiedAmount' | 'createdOnBehalfBy'> & { createdOnBehalfBy?: string | null }): Promise<WithdrawalRequest> {
     const [request] = await db.insert(withdrawalRequests).values({
       ...data,
       status: 'pending',
+      createdOnBehalfBy: data.createdOnBehalfBy || null,
     }).returning();
     return request;
   }

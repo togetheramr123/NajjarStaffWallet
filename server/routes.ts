@@ -628,6 +628,70 @@ export async function registerRoutes(
     }
   });
 
+  // Branch manager creates withdrawal request on behalf of employee
+  const onBehalfWithdrawalSchema = z.object({
+    employeeId: z.string().min(1, "معرف الموظف مطلوب"),
+    amount: z.number().positive("المبلغ يجب أن يكون موجباً"),
+    beneficiary: z.enum(["self", "family"]),
+    notes: z.string().optional(),
+  });
+
+  app.post("/api/withdrawal-requests/on-behalf", requireBranchManagerOrAbove, async (req, res) => {
+    const parsed = onBehalfWithdrawalSchema.safeParse(req.body);
+    
+    if (!parsed.success) {
+      return res.status(400).json({ message: "بيانات غير صالحة", errors: parsed.error.errors });
+    }
+
+    try {
+      const { employeeId, amount, beneficiary, notes } = parsed.data;
+      
+      // Get the employee
+      const employee = await storage.getUser(employeeId);
+      if (!employee) {
+        return res.status(404).json({ message: "الموظف غير موجود" });
+      }
+
+      // Branch managers can only create requests for their branch employees
+      if (req.user?.role === "branch_manager") {
+        if (employee.branchId !== req.user.branchId) {
+          return res.status(403).json({ message: "لا يمكنك إنشاء طلب لموظف من فرع آخر" });
+        }
+      }
+
+      // Check available balance
+      const pendingAmount = await storage.getPendingAmountForUser(employeeId);
+      const availableBalance = employee.balance - pendingAmount;
+
+      if (amount > availableBalance) {
+        return res.status(400).json({ message: "المبلغ المطلوب يتجاوز الرصيد المتاح للموظف" });
+      }
+
+      const request = await storage.createWithdrawalRequest({
+        userId: employeeId,
+        amount,
+        beneficiary,
+        notes: notes || null,
+        attachmentPath: null,
+        createdOnBehalfBy: req.user!.id,
+      });
+
+      res.status(201).json({ 
+        message: "تم إرسال الطلب بنجاح بالنيابة عن الموظف",
+        request: {
+          id: request.id,
+          amount: request.amount,
+          beneficiary: request.beneficiary,
+          notes: request.notes,
+          createdAt: request.createdAt,
+          createdOnBehalfBy: request.createdOnBehalfBy,
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في إنشاء الطلب" });
+    }
+  });
+
   app.get("/api/withdrawal-requests/pending", requireBranchManagerOrAbove, async (req, res) => {
     try {
       const allRequests = await storage.getPendingWithdrawalRequests();
