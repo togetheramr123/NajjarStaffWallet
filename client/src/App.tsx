@@ -149,10 +149,34 @@ function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => v
   );
 }
 
+function PrayerSplash({ onComplete }: { onComplete: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onComplete();
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary">
+      <div className="text-center text-primary-foreground">
+        <p className="text-4xl md:text-5xl font-bold mb-4 animate-pulse">
+          اللهم صلِّ وسلم على نبينا محمد
+        </p>
+        <p className="text-xl md:text-2xl opacity-80">
+          صلى الله عليه وسلم
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function AppContent() {
   const { user, isLoading, logout } = useAuth();
   const [, setLocation] = useLocation();
   const [showLogin, setShowLogin] = useState(false);
+  const [showSplash, setShowSplash] = useState(false);
+  const [hasSeenSplash, setHasSeenSplash] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
@@ -161,9 +185,21 @@ function AppContent() {
     }
   }, []);
 
+  useEffect(() => {
+    if (user && !hasSeenSplash) {
+      setShowSplash(true);
+    }
+  }, [user, hasSeenSplash]);
+
+  const handleSplashComplete = () => {
+    setShowSplash(false);
+    setHasSeenSplash(true);
+  };
+
   const handleLogout = async () => {
     await logout();
     setShowLogin(false);
+    setHasSeenSplash(false);
     setLocation("/");
   };
 
@@ -176,6 +212,9 @@ function AppContent() {
   }
 
   if (user) {
+    if (showSplash) {
+      return <PrayerSplash onComplete={handleSplashComplete} />;
+    }
     return <AuthenticatedLayout user={user} onLogout={handleLogout} />;
   }
 
