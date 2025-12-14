@@ -15,6 +15,7 @@ interface WithdrawalRequest {
   processingNotes?: string;
   hasAttachment?: boolean;
   attachmentPath?: string;
+  createdOnBehalfBy?: string | null;
 }
 
 interface RequestTrackerProps {
@@ -124,6 +125,11 @@ export default function RequestTracker({ requests, onViewAttachment }: RequestTr
                               <Badge variant={config.variant} className="text-xs">
                                 {config.label}
                               </Badge>
+                              {request.createdOnBehalfBy && (
+                                <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300" data-testid={`badge-on-behalf-${request.id}`}>
+                                  المدير عمل طلب بالنيابه عنك
+                                </Badge>
+                              )}
                             </div>
                             <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
                               <span className="flex items-center gap-1">

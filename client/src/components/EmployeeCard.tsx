@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Eye, Edit, Wallet, Ban, Building2 } from "lucide-react";
+import { MoreVertical, Eye, Edit, Wallet, Ban, Building2, Banknote } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -22,6 +22,7 @@ interface EmployeeCardProps {
   onEdit?: (id: string) => void;
   onAdjustBalance?: (id: string) => void;
   onToggleStatus?: (id: string) => void;
+  onWithdrawalOnBehalf?: (id: string) => void;
   viewOnly?: boolean;
 }
 
@@ -31,6 +32,7 @@ export default function EmployeeCard({
   onEdit, 
   onAdjustBalance,
   onToggleStatus,
+  onWithdrawalOnBehalf,
   viewOnly = false
 }: EmployeeCardProps) {
   const initials = employee.name.split(' ').map(n => n[0]).join('').slice(0, 2);
@@ -102,13 +104,27 @@ export default function EmployeeCard({
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex items-center justify-between gap-2 pt-0">
-        <Badge variant={employee.role === 'manager' ? 'default' : employee.role === 'branch_manager' ? 'outline' : 'secondary'}>
-          {employee.role === 'manager' ? 'مدير عام' : employee.role === 'branch_manager' ? 'مدير فرع' : 'موظف'}
-        </Badge>
-        <Badge variant={employee.status === 'active' ? 'outline' : 'destructive'}>
-          {employee.status === 'active' ? 'نشط' : 'معطل'}
-        </Badge>
+      <CardFooter className="flex flex-col gap-3 pt-0">
+        <div className="flex items-center justify-between gap-2 w-full">
+          <Badge variant={employee.role === 'manager' ? 'default' : employee.role === 'branch_manager' ? 'outline' : 'secondary'}>
+            {employee.role === 'manager' ? 'مدير عام' : employee.role === 'branch_manager' ? 'مدير فرع' : 'موظف'}
+          </Badge>
+          <Badge variant={employee.status === 'active' ? 'outline' : 'destructive'}>
+            {employee.status === 'active' ? 'نشط' : 'معطل'}
+          </Badge>
+        </div>
+        {onWithdrawalOnBehalf && employee.role === 'employee' && employee.status === 'active' && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full"
+            onClick={() => onWithdrawalOnBehalf(employee.id)}
+            data-testid={`button-withdrawal-behalf-${employee.id}`}
+          >
+            <Banknote className="h-4 w-4 ml-2" />
+            طلب سحب بالنيابة
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

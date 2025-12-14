@@ -5,6 +5,7 @@ import AdjustBalanceDialog from "@/components/AdjustBalanceDialog";
 import EditEmployeeDialog from "@/components/EditEmployeeDialog";
 import BranchManagement from "@/components/BranchManagement";
 import BulkBalanceDialog from "@/components/BulkBalanceDialog";
+import WithdrawalOnBehalfDialog from "@/components/WithdrawalOnBehalfDialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -39,6 +40,7 @@ export default function EmployeesPage() {
   const [branchFilter, setBranchFilter] = useState<string>("all");
   const [adjustDialogOpen, setAdjustDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [withdrawalOnBehalfDialogOpen, setWithdrawalOnBehalfDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activeTab, setActiveTab] = useState("employees");
   const { toast } = useToast();
@@ -150,6 +152,29 @@ export default function EmployeesPage() {
         title: "تم التعديل",
         description: data.message || "تم تعديل الرصيد الجماعي بنجاح",
       });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const withdrawalOnBehalfMutation = useMutation({
+    mutationFn: async (data: { employeeId: string; amount: number; beneficiary: "self" | "family"; notes?: string }) => {
+      const res = await apiRequest("POST", "/api/withdrawal-requests/on-behalf", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/withdrawal-requests"] });
+      toast({
+        title: "تم إرسال الطلب",
+        description: "تم إنشاء طلب السحب بالنيابة عن الموظف بنجاح",
+      });
+      setWithdrawalOnBehalfDialogOpen(false);
     },
     onError: (error: Error) => {
       toast({
@@ -391,6 +416,13 @@ export default function EmployeesPage() {
                     branchName: getBranchName(employee.branchId),
                   }}
                   viewOnly={true}
+                  onWithdrawalOnBehalf={(id) => {
+                    const emp = employees?.find((e) => e.id === id);
+                    if (emp) {
+                      setSelectedEmployee(emp);
+                      setWithdrawalOnBehalfDialogOpen(true);
+                    }
+                  }}
                 />
               ))}
             </div>
@@ -417,6 +449,18 @@ export default function EmployeesPage() {
         isLoading={editEmployeeMutation.isPending}
         branches={branches || []}
       />
+
+      {selectedEmployee && (
+        <WithdrawalOnBehalfDialog
+          open={withdrawalOnBehalfDialogOpen}
+          onOpenChange={setWithdrawalOnBehalfDialogOpen}
+          employeeName={selectedEmployee.name}
+          employeeId={selectedEmployee.id}
+          availableBalance={selectedEmployee.balance}
+          onSubmit={(data) => withdrawalOnBehalfMutation.mutate(data)}
+          isLoading={withdrawalOnBehalfMutation.isPending}
+        />
+      )}
     </div>
   );
 }

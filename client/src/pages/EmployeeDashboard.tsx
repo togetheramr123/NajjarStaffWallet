@@ -48,6 +48,7 @@ interface WithdrawalRequest {
   processedAt: string | null;
   processingNotes: string | null;
   modifiedAmount: number | null;
+  createdOnBehalfBy: string | null;
 }
 
 interface SubmittedRequest {
@@ -269,6 +270,7 @@ export default function EmployeeDashboard() {
                 processingNotes: r.processingNotes || undefined,
                 hasAttachment: !!r.attachmentPath,
                 attachmentPath: r.attachmentPath || undefined,
+                createdOnBehalfBy: r.createdOnBehalfBy,
               }))}
               onViewAttachment={handleViewAttachment}
             />
