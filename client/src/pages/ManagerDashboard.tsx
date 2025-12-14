@@ -183,7 +183,8 @@ export default function ManagerDashboard() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
         <div>
-          <h2 className="text-2xl font-bold mb-1" data-testid="text-dashboard-title">لوحة تحكم المدير</h2>
+          <h2 className="text-2xl font-bold mb-1" data-testid="text-dashboard-title">مرحباً {user?.name}</h2>
+          <p className="text-primary font-medium mb-1">اللهم صلِّ وسلم على نبينا محمد</p>
           <p className="text-muted-foreground">نظرة عامة على النظام</p>
         </div>
         <div className="flex gap-2">

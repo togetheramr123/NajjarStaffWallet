@@ -85,10 +85,21 @@ function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => v
   }, [pendingData]);
 
   useEffect(() => {
-    if (location === "/" && (user.role === "manager" || user.role === "branch_manager")) {
-      setLocation("/manager");
-    } else if (location === "/" && user.role === "employee") {
-      setLocation("/dashboard");
+    const validManagerPaths = ["/", "/manager", "/employees", "/approvals", "/operations", "/reports", "/settings", "/profile", "/my-balance", "/my-withdraw", "/my-transactions"];
+    const validEmployeePaths = ["/", "/dashboard", "/balance", "/withdraw", "/transactions", "/profile"];
+    
+    if (user.role === "manager" || user.role === "branch_manager") {
+      if (!validManagerPaths.includes(location)) {
+        setLocation("/manager");
+      } else if (location === "/") {
+        setLocation("/manager");
+      }
+    } else if (user.role === "employee") {
+      if (!validEmployeePaths.includes(location)) {
+        setLocation("/dashboard");
+      } else if (location === "/") {
+        setLocation("/dashboard");
+      }
     }
   }, [location, user.role, setLocation]);
 

@@ -192,6 +192,7 @@ export default function EmployeeDashboard() {
         <h2 className="text-2xl font-bold mb-2" data-testid="text-welcome">
           مرحباً {user?.name}
         </h2>
+        <p className="text-primary font-medium mb-1">اللهم صلِّ وسلم على نبينا محمد</p>
         <p className="text-muted-foreground">إليك ملخص رصيدك ومعاملاتك</p>
       </div>
 
