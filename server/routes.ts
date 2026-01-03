@@ -644,6 +644,13 @@ export async function registerRoutes(
         attachmentPath: req.file ? `/uploads/${req.file.filename}` : null,
       });
 
+      const { sendPushToManagers } = require('./pushService');
+      sendPushToManagers(
+        "طلب سحب جديد",
+        `${user.name} طلب سحب ${parsed.data.amount.toLocaleString('ar-EG')} ج.م`,
+        '/'
+      ).catch((err: Error) => console.error('Push to managers failed:', err));
+
       res.status(201).json({ 
         message: "تم إرسال الطلب بنجاح",
         request: {
@@ -831,6 +838,8 @@ export async function registerRoutes(
 
       const updatedEmployee = await storage.getUser(request.userId);
       
+      const { sendPushNotification } = require('./pushService');
+      
       if (status === "approved") {
         const notificationType = action === "modify" ? "modified" : "approved";
         const notificationTitle = action === "modify" ? "تم تعديل طلب السحب والموافقة عليه" : "تمت الموافقة على طلب السحب";
@@ -846,14 +855,19 @@ export async function registerRoutes(
           amount: finalAmount || request.amount,
           remainingBalance: updatedEmployee?.balance || 0,
         });
+        
+        sendPushNotification(request.userId, notificationTitle, notificationMessage, '/').catch((err: Error) => console.error('Push failed:', err));
       } else {
+        const rejectMessage = `تم رفض طلب سحب ${request.amount.toLocaleString('ar-EG')} ج.م${notes ? `. السبب: ${notes}` : ''}`;
         await storage.createNotification({
           userId: request.userId,
           type: "rejected",
           title: "تم رفض طلب السحب",
-          message: `تم رفض طلب سحب ${request.amount.toLocaleString('ar-EG')} ج.م${notes ? `. السبب: ${notes}` : ''}`,
+          message: rejectMessage,
           amount: request.amount,
         });
+        
+        sendPushNotification(request.userId, "تم رفض طلب السحب", rejectMessage, '/').catch((err: Error) => console.error('Push failed:', err));
       }
       
       res.json({
@@ -951,6 +965,41 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "خطأ في تحديث الإشعارات" });
+    }
+  });
+
+  app.get("/api/push/vapid-key", requireAuth, (_req, res) => {
+    const { getVapidPublicKey } = require('./pushService');
+    const key = getVapidPublicKey();
+    if (!key) {
+      return res.status(500).json({ message: "VAPID key not configured" });
+    }
+    res.json({ publicKey: key });
+  });
+
+  app.post("/api/push/subscribe", requireAuth, async (req, res) => {
+    try {
+      const { subscription } = req.body;
+      if (!subscription || !subscription.endpoint || !subscription.keys) {
+        return res.status(400).json({ message: "بيانات الاشتراك غير صحيحة" });
+      }
+      await storage.savePushSubscription(req.user!.id, subscription);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في حفظ الاشتراك" });
+    }
+  });
+
+  app.post("/api/push/unsubscribe", requireAuth, async (req, res) => {
+    try {
+      const { endpoint } = req.body;
+      if (!endpoint) {
+        return res.status(400).json({ message: "نقطة النهاية مطلوبة" });
+      }
+      await storage.deletePushSubscription(req.user!.id, endpoint);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في إلغاء الاشتراك" });
     }
   });
 

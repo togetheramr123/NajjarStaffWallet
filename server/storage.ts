@@ -7,12 +7,14 @@ import {
   type Notification,
   type Branch,
   type InsertBranch,
+  type PushSubscription,
   users, 
   transactions, 
   withdrawalRequests,
   serviceFeeLog,
   notifications,
-  branches
+  branches,
+  pushSubscriptions
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -56,6 +58,11 @@ export interface IStorage {
   createNotification(data: { userId: string; type: 'approved' | 'rejected' | 'modified'; title: string; message: string; amount?: number; remainingBalance?: number }): Promise<Notification>;
   markNotificationAsRead(id: string, userId: string): Promise<boolean>;
   markAllNotificationsAsRead(userId: string): Promise<void>;
+  
+  savePushSubscription(userId: string, subscription: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<PushSubscription>;
+  getPushSubscriptions(userId: string): Promise<PushSubscription[]>;
+  getAllManagerPushSubscriptions(): Promise<PushSubscription[]>;
+  deletePushSubscription(userId: string, endpoint: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -152,6 +159,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(withdrawalRequests).where(eq(withdrawalRequests.userId, id));
     await db.delete(serviceFeeLog).where(eq(serviceFeeLog.userId, id));
     await db.delete(notifications).where(eq(notifications.userId, id));
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, id));
     
     // Now delete the user
     const result = await db.delete(users).where(eq(users.id, id)).returning();
@@ -367,6 +375,50 @@ export class DatabaseStorage implements IStorage {
     await db.update(notifications)
       .set({ isRead: true })
       .where(eq(notifications.userId, userId));
+  }
+
+  async savePushSubscription(userId: string, subscription: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<PushSubscription> {
+    await db.delete(pushSubscriptions).where(
+      and(
+        eq(pushSubscriptions.userId, userId),
+        eq(pushSubscriptions.endpoint, subscription.endpoint)
+      )
+    );
+    
+    const [sub] = await db.insert(pushSubscriptions).values({
+      userId,
+      endpoint: subscription.endpoint,
+      p256dh: subscription.keys.p256dh,
+      auth: subscription.keys.auth,
+    }).returning();
+    return sub;
+  }
+
+  async getPushSubscriptions(userId: string): Promise<PushSubscription[]> {
+    return db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
+  }
+
+  async getAllManagerPushSubscriptions(): Promise<PushSubscription[]> {
+    const managers = await db.select().from(users).where(eq(users.role, 'manager'));
+    const managerIds = managers.map(m => m.id);
+    if (managerIds.length === 0) return [];
+    
+    const allSubs: PushSubscription[] = [];
+    for (const managerId of managerIds) {
+      const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, managerId));
+      allSubs.push(...subs);
+    }
+    return allSubs;
+  }
+
+  async deletePushSubscription(userId: string, endpoint: string): Promise<boolean> {
+    const result = await db.delete(pushSubscriptions).where(
+      and(
+        eq(pushSubscriptions.userId, userId),
+        eq(pushSubscriptions.endpoint, endpoint)
+      )
+    ).returning();
+    return result.length > 0;
   }
 }
 

@@ -28,6 +28,7 @@ import {
 import { Link, useLocation } from "wouter";
 import logoImage from "@assets/Screenshot_2025-08-19_143408_1764855126982.png";
 import NotificationsPanel from "./NotificationsPanel";
+import PushNotificationButton from "./PushNotificationButton";
 
 interface AppSidebarProps {
   userRole: 'employee' | 'branch_manager' | 'manager';
@@ -168,6 +169,7 @@ export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarP
               {userRole === 'manager' ? 'المدير العام' : userRole === 'branch_manager' ? 'مدير فرع' : 'موظف'}
             </span>
           </div>
+          <PushNotificationButton />
           {(userRole === 'employee' || userRole === 'branch_manager') && (
             <NotificationsPanel />
           )}
