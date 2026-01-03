@@ -915,15 +915,6 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/service-fees/process", requireManager, async (_req, res) => {
-    try {
-      const count = await storage.processMonthlyServiceFees();
-      res.json({ message: `تم معالجة رسوم الخدمة لـ ${count} موظف` });
-    } catch (error) {
-      res.status(500).json({ message: "خطأ في معالجة رسوم الخدمة" });
-    }
-  });
-
   app.get("/api/notifications", requireAuth, async (req, res) => {
     try {
       const notifications = await storage.getNotifications(req.user!.id);
