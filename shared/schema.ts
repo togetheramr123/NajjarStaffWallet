@@ -9,6 +9,7 @@ export const transactionTypeEnum = pgEnum("transaction_type", ["withdrawal", "de
 export const requestStatusEnum = pgEnum("request_status", ["pending", "approved", "rejected"]);
 export const beneficiaryEnum = pgEnum("beneficiary", ["self", "family"]);
 export const notificationTypeEnum = pgEnum("notification_type", ["approved", "rejected", "modified"]);
+export const messageTargetEnum = pgEnum("message_target", ["all", "branch", "individual"]);
 
 export const branches = pgTable("branches", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -92,6 +93,24 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const broadcastMessages = pgTable("broadcast_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderId: varchar("sender_id").notNull().references(() => users.id),
+  targetType: messageTargetEnum("target_type").notNull(),
+  targetBranchId: varchar("target_branch_id").references(() => branches.id),
+  targetUserId: varchar("target_user_id").references(() => users.id),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const messageReadStatus = pgTable("message_read_status", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  messageId: varchar("message_id").notNull().references(() => broadcastMessages.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  readAt: timestamp("read_at").notNull().defaultNow(),
+});
+
 export const insertBranchSchema = createInsertSchema(branches).omit({
   id: true,
   createdAt: true,
@@ -165,3 +184,20 @@ export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
 export type ServiceFeeLog = typeof serviceFeeLog.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type BroadcastMessage = typeof broadcastMessages.$inferSelect;
+export type MessageReadStatus = typeof messageReadStatus.$inferSelect;
+
+export const insertBroadcastMessageSchema = createInsertSchema(broadcastMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const sendMessageSchema = z.object({
+  targetType: z.enum(["all", "branch", "individual"]),
+  targetBranchId: z.string().optional(),
+  targetUserId: z.string().optional(),
+  title: z.string().min(1, "العنوان مطلوب"),
+  content: z.string().min(1, "محتوى الرسالة مطلوب"),
+});
+
+export type InsertBroadcastMessage = z.infer<typeof insertBroadcastMessageSchema>;
