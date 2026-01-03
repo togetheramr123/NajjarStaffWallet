@@ -23,12 +23,14 @@ import {
   LogOut,
   CreditCard,
   Bell,
-  User
+  User,
+  MessageSquare
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import logoImage from "@assets/Screenshot_2025-08-19_143408_1764855126982.png";
 import NotificationsPanel from "./NotificationsPanel";
 import PushNotificationButton from "./PushNotificationButton";
+import MessagesPanel from "./MessagesPanel";
 
 interface AppSidebarProps {
   userRole: 'employee' | 'branch_manager' | 'manager';
@@ -48,6 +50,7 @@ const managerMenuItems = [
   { title: "لوحة التحكم", url: "/manager", icon: LayoutDashboard },
   { title: "إدارة الموظفين", url: "/employees", icon: Users },
   { title: "الطلبات المعلقة", url: "/approvals", icon: ClipboardCheck },
+  { title: "الرسائل", url: "/messages", icon: MessageSquare },
   { title: "العمليات المالية", url: "/operations", icon: Wallet },
   { title: "التقارير", url: "/reports", icon: History },
   { title: "الإعدادات", url: "/settings", icon: Settings },
@@ -170,6 +173,7 @@ export default function AppSidebar({ userRole, userName, onLogout }: AppSidebarP
             </span>
           </div>
           <PushNotificationButton />
+          <MessagesPanel />
           {(userRole === 'employee' || userRole === 'branch_manager') && (
             <NotificationsPanel />
           )}

@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth, type User } from "@/contexts/AuthContext";
 import BranchManagerPersonalPage from "@/pages/BranchManagerPersonalPage";
+import MessagesPage from "@/pages/MessagesPage";
 
 export { useAuth };
 
@@ -29,6 +30,7 @@ function Router({ userRole }: { userRole: "employee" | "branch_manager" | "manag
         <Route path="/manager" component={ManagerDashboard} />
         <Route path="/employees" component={EmployeesPage} />
         <Route path="/approvals" component={ApprovalsPage} />
+        <Route path="/messages" component={MessagesPage} />
         <Route path="/operations" component={ManagerDashboard} />
         <Route path="/reports" component={ManagerDashboard} />
         <Route path="/settings" component={ManagerDashboard} />
