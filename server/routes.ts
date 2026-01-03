@@ -329,10 +329,10 @@ export async function registerRoutes(
 
   app.patch("/api/employees/:id", requireManager, async (req, res) => {
     const { id } = req.params;
-    const { name, employeeNumber, role, status, password, branchId } = req.body;
+    const { name, username, employeeNumber, role, status, password, branchId } = req.body;
 
     try {
-      const user = await storage.updateUser(id, { name, employeeNumber, role, status, password, branchId });
+      const user = await storage.updateUser(id, { name, username, employeeNumber, role, status, password, branchId });
       if (!user) {
         return res.status(404).json({ message: "الموظف غير موجود" });
       }
