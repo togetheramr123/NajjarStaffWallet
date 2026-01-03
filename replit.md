@@ -104,7 +104,8 @@ Preferred communication style: Simple, everyday language.
 - `branches` table: Branch management with name and code
 - `transactions` table: All financial transactions (withdrawals, deposits, adjustments, service fees)
 - `withdrawal_requests` table: Employee withdrawal requests with approval workflow
-- `service_fee_log` table: Monthly service fee tracking
+- `service_fee_log` table: Monthly service fee tracking (deprecated - feature removed)
+- `push_subscriptions` table: Browser push notification subscriptions
 
 **Key Features**:
 - UUID primary keys for security
@@ -124,6 +125,24 @@ Preferred communication style: Simple, everyday language.
 - Protected routes requiring authentication
 - Role-specific API endpoints
 - Branch-scoped data access for branch managers
+
+### Web Push Notifications
+
+**Implementation**: Browser-native Web Push API with VAPID keys
+
+**Components**:
+- Service Worker: `client/public/sw.js` - handles push events and shows system notifications
+- Push Service: `server/pushService.ts` - sends push notifications via web-push library
+- Subscription Storage: PostgreSQL table for storing user push subscriptions
+
+**Notification Triggers**:
+- When an employee creates a withdrawal request → All managers receive push notification
+- When a manager approves/rejects/modifies a request → The employee receives push notification
+
+**User Experience**:
+- Push notification button in sidebar for all users
+- Users can enable/disable browser notifications at any time
+- All notification messages are in Arabic
 
 ### File Management
 
