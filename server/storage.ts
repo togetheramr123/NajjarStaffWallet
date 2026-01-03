@@ -8,16 +8,20 @@ import {
   type Branch,
   type InsertBranch,
   type PushSubscription,
+  type BroadcastMessage,
+  type MessageReadStatus,
   users, 
   transactions, 
   withdrawalRequests,
   serviceFeeLog,
   notifications,
   branches,
-  pushSubscriptions
+  pushSubscriptions,
+  broadcastMessages,
+  messageReadStatus
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, or, isNull } from "drizzle-orm";
 import { hashPassword } from "./auth";
 
 export interface IStorage {
@@ -63,6 +67,11 @@ export interface IStorage {
   getPushSubscriptions(userId: string): Promise<PushSubscription[]>;
   getAllManagerPushSubscriptions(): Promise<PushSubscription[]>;
   deletePushSubscription(userId: string, endpoint: string): Promise<boolean>;
+  
+  createBroadcastMessage(data: { senderId: string; targetType: 'all' | 'branch' | 'individual'; targetBranchId?: string | null; targetUserId?: string | null; title: string; content: string }): Promise<BroadcastMessage>;
+  getMessagesForUser(userId: string, userBranchId: string | null): Promise<(BroadcastMessage & { sender: User; isRead: boolean })[]>;
+  markMessageAsRead(messageId: string, userId: string): Promise<MessageReadStatus>;
+  getUnreadMessagesCount(userId: string, userBranchId: string | null): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -419,6 +428,66 @@ export class DatabaseStorage implements IStorage {
       )
     ).returning();
     return result.length > 0;
+  }
+
+  async createBroadcastMessage(data: { senderId: string; targetType: 'all' | 'branch' | 'individual'; targetBranchId?: string | null; targetUserId?: string | null; title: string; content: string }): Promise<BroadcastMessage> {
+    const [message] = await db.insert(broadcastMessages).values({
+      senderId: data.senderId,
+      targetType: data.targetType,
+      targetBranchId: data.targetBranchId || null,
+      targetUserId: data.targetUserId || null,
+      title: data.title,
+      content: data.content,
+    }).returning();
+    return message;
+  }
+
+  async getMessagesForUser(userId: string, userBranchId: string | null): Promise<(BroadcastMessage & { sender: User; isRead: boolean })[]> {
+    const allMessages = await db
+      .select({
+        message: broadcastMessages,
+        sender: users,
+      })
+      .from(broadcastMessages)
+      .innerJoin(users, eq(broadcastMessages.senderId, users.id))
+      .orderBy(desc(broadcastMessages.createdAt));
+    
+    const readStatuses = await db.select().from(messageReadStatus).where(eq(messageReadStatus.userId, userId));
+    const readMessageIds = new Set(readStatuses.map(r => r.messageId));
+    
+    const filteredMessages = allMessages.filter(({ message }) => {
+      if (message.targetType === 'all') return true;
+      if (message.targetType === 'individual' && message.targetUserId === userId) return true;
+      if (message.targetType === 'branch' && message.targetBranchId === userBranchId) return true;
+      return false;
+    });
+    
+    return filteredMessages.map(({ message, sender }) => ({
+      ...message,
+      sender,
+      isRead: readMessageIds.has(message.id),
+    }));
+  }
+
+  async markMessageAsRead(messageId: string, userId: string): Promise<MessageReadStatus> {
+    const existing = await db.select().from(messageReadStatus).where(
+      and(
+        eq(messageReadStatus.messageId, messageId),
+        eq(messageReadStatus.userId, userId)
+      )
+    );
+    if (existing.length > 0) return existing[0];
+    
+    const [status] = await db.insert(messageReadStatus).values({
+      messageId,
+      userId,
+    }).returning();
+    return status;
+  }
+
+  async getUnreadMessagesCount(userId: string, userBranchId: string | null): Promise<number> {
+    const messages = await this.getMessagesForUser(userId, userBranchId);
+    return messages.filter(m => !m.isRead).length;
   }
 }
 

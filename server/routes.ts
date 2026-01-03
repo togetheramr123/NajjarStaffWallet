@@ -13,6 +13,7 @@ import {
   createWithdrawalSchema,
   processRequestSchema,
   createBranchSchema,
+  sendMessageSchema,
   type User
 } from "@shared/schema";
 import multer from "multer";
@@ -1000,6 +1001,88 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "خطأ في إلغاء الاشتراك" });
+    }
+  });
+
+  // Broadcast Messages API
+  app.post("/api/messages", requireAuth, async (req, res) => {
+    try {
+      if (req.user!.role !== 'manager') {
+        return res.status(403).json({ message: "غير مصرح" });
+      }
+      
+      const parsed = sendMessageSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "بيانات غير صحيحة", errors: parsed.error.errors });
+      }
+      
+      const { targetType, targetBranchId, targetUserId, title, content } = parsed.data;
+      
+      if (targetType === 'branch' && !targetBranchId) {
+        return res.status(400).json({ message: "يجب تحديد الفرع" });
+      }
+      if (targetType === 'individual' && !targetUserId) {
+        return res.status(400).json({ message: "يجب تحديد الموظف" });
+      }
+      
+      const message = await storage.createBroadcastMessage({
+        senderId: req.user!.id,
+        targetType,
+        targetBranchId: targetType === 'branch' ? targetBranchId : null,
+        targetUserId: targetType === 'individual' ? targetUserId : null,
+        title,
+        content,
+      });
+      
+      // Send push notifications to recipients
+      const { sendPushNotification, sendPushToManagers } = require('./pushService');
+      
+      if (targetType === 'all') {
+        const allUsers = await storage.getAllUsers();
+        for (const user of allUsers) {
+          if (user.id !== req.user!.id) {
+            sendPushNotification(user.id, title, content, '/').catch((err: Error) => console.error('Push failed:', err));
+          }
+        }
+      } else if (targetType === 'branch' && targetBranchId) {
+        const branchUsers = await storage.getUsersByBranch(targetBranchId);
+        for (const user of branchUsers) {
+          sendPushNotification(user.id, title, content, '/').catch((err: Error) => console.error('Push failed:', err));
+        }
+      } else if (targetType === 'individual' && targetUserId) {
+        sendPushNotification(targetUserId, title, content, '/').catch((err: Error) => console.error('Push failed:', err));
+      }
+      
+      res.status(201).json(message);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في إرسال الرسالة" });
+    }
+  });
+
+  app.get("/api/messages", requireAuth, async (req, res) => {
+    try {
+      const messages = await storage.getMessagesForUser(req.user!.id, req.user!.branchId);
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في جلب الرسائل" });
+    }
+  });
+
+  app.post("/api/messages/:id/read", requireAuth, async (req, res) => {
+    try {
+      await storage.markMessageAsRead(req.params.id, req.user!.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في تحديث حالة القراءة" });
+    }
+  });
+
+  app.get("/api/messages/unread-count", requireAuth, async (req, res) => {
+    try {
+      const count = await storage.getUnreadMessagesCount(req.user!.id, req.user!.branchId);
+      res.json({ count });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في جلب عدد الرسائل" });
     }
   });
 
