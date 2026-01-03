@@ -87,7 +87,7 @@ function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => v
   }, [pendingData]);
 
   useEffect(() => {
-    const validManagerPaths = ["/", "/manager", "/employees", "/approvals", "/operations", "/reports", "/settings", "/profile", "/my-balance", "/my-withdraw", "/my-transactions"];
+    const validManagerPaths = ["/", "/manager", "/employees", "/approvals", "/messages", "/operations", "/reports", "/settings", "/profile", "/my-balance", "/my-withdraw", "/my-transactions"];
     const validEmployeePaths = ["/", "/dashboard", "/balance", "/withdraw", "/transactions", "/profile"];
     
     if (user.role === "manager" || user.role === "branch_manager") {
@@ -115,6 +115,7 @@ function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => v
       "/manager": "لوحة التحكم",
       "/employees": "إدارة الموظفين",
       "/approvals": "طلبات السحب",
+      "/messages": "الرسائل والإعلانات",
       "/operations": "العمليات المالية",
       "/reports": "التقارير",
       "/settings": "الإعدادات",
