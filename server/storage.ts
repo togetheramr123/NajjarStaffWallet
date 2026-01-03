@@ -462,11 +462,14 @@ export class DatabaseStorage implements IStorage {
       return false;
     });
     
-    return filteredMessages.map(({ message, sender }) => ({
-      ...message,
-      sender,
-      isRead: readMessageIds.has(message.id),
-    }));
+    return filteredMessages.map(({ message, sender }) => {
+      const { password, ...senderWithoutPassword } = sender;
+      return {
+        ...message,
+        sender: senderWithoutPassword as User,
+        isRead: readMessageIds.has(message.id),
+      };
+    });
   }
 
   async markMessageAsRead(messageId: string, userId: string): Promise<MessageReadStatus> {

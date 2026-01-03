@@ -19,6 +19,7 @@ import {
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { sendPushNotification, sendPushToManagers, getVapidPublicKey } from "./pushService";
 
 declare global {
   namespace Express {
@@ -645,7 +646,6 @@ export async function registerRoutes(
         attachmentPath: req.file ? `/uploads/${req.file.filename}` : null,
       });
 
-      const { sendPushToManagers } = require('./pushService');
       sendPushToManagers(
         "طلب سحب جديد",
         `${user.name} طلب سحب ${parsed.data.amount.toLocaleString('ar-EG')} ج.م`,
@@ -839,8 +839,6 @@ export async function registerRoutes(
 
       const updatedEmployee = await storage.getUser(request.userId);
       
-      const { sendPushNotification } = require('./pushService');
-      
       if (status === "approved") {
         const notificationType = action === "modify" ? "modified" : "approved";
         const notificationTitle = action === "modify" ? "تم تعديل طلب السحب والموافقة عليه" : "تمت الموافقة على طلب السحب";
@@ -970,7 +968,6 @@ export async function registerRoutes(
   });
 
   app.get("/api/push/vapid-key", requireAuth, (_req, res) => {
-    const { getVapidPublicKey } = require('./pushService');
     const key = getVapidPublicKey();
     if (!key) {
       return res.status(500).json({ message: "VAPID key not configured" });
@@ -1035,8 +1032,6 @@ export async function registerRoutes(
       });
       
       // Send push notifications to recipients
-      const { sendPushNotification, sendPushToManagers } = require('./pushService');
-      
       if (targetType === 'all') {
         const allUsers = await storage.getAllUsers();
         for (const user of allUsers) {
@@ -1055,6 +1050,7 @@ export async function registerRoutes(
       
       res.status(201).json(message);
     } catch (error) {
+      console.error('Error sending message:', error);
       res.status(500).json({ message: "خطأ في إرسال الرسالة" });
     }
   });
