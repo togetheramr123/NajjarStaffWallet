@@ -40,3 +40,10 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_log_in_with_replit:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+VAPID_PUBLIC_KEY = "BKhHj3rxlEqEtWhDMgdij-NrKSppY8XLQioo4N0JHFQgqyTYdHtzNLFmQ3oBRP4CHn-b2lMpkG0fhEwg7vw-jTM"
+VAPID_PRIVATE_KEY = "TabU6H4NX8F5XKLys6KS1oGUEJ3tkLu7bWO3wW8igKs"
+VAPID_SUBJECT = "mailto:admin@hsngroup.com"

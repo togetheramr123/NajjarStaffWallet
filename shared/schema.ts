@@ -83,6 +83,15 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertBranchSchema = createInsertSchema(branches).omit({
   id: true,
   createdAt: true,
@@ -155,3 +164,4 @@ export type Transaction = typeof transactions.$inferSelect;
 export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
 export type ServiceFeeLog = typeof serviceFeeLog.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
