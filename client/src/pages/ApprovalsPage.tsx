@@ -21,6 +21,8 @@ interface WithdrawalRequest {
   processedAt: string | null;
   processingNotes: string | null;
   modifiedAmount: number | null;
+  employeeName: string;
+  employeeNumber: string;
 }
 
 interface PendingRequest {
@@ -150,8 +152,8 @@ export default function ApprovalsPage() {
 
   const formatRequestForCard = (request: WithdrawalRequest) => ({
     id: request.id,
-    employeeName: "موظف",
-    employeeId: request.userId.slice(0, 8),
+    employeeName: request.employeeName,
+    employeeId: request.employeeNumber,
     amount: request.modifiedAmount || request.amount,
     beneficiary: request.beneficiary,
     requestDate: new Date(request.createdAt).toISOString().split("T")[0],

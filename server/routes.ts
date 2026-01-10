@@ -761,19 +761,30 @@ export async function registerRoutes(
 
   app.get("/api/withdrawal-requests/all", requireBranchManagerOrAbove, async (req, res) => {
     try {
-      const allRequests = await storage.getWithdrawalRequests();
+      const allRequests = await storage.getAllWithdrawalRequestsWithUsers();
       
       // Branch managers can only see requests from their branch employees
       let filteredRequests = allRequests;
       if (req.user?.role === "branch_manager" && req.user?.branchId) {
-        const branchEmployees = await storage.getAllUsers();
-        const branchEmployeeIds = branchEmployees
-          .filter(emp => emp.branchId === req.user!.branchId)
-          .map(emp => emp.id);
-        filteredRequests = allRequests.filter(r => branchEmployeeIds.includes(r.userId));
+        filteredRequests = allRequests.filter(r => r.user.branchId === req.user!.branchId);
       }
       
-      res.json(filteredRequests);
+      res.json(filteredRequests.map(r => ({
+        id: r.id,
+        userId: r.userId,
+        amount: r.amount,
+        beneficiary: r.beneficiary,
+        notes: r.notes,
+        attachmentPath: r.attachmentPath,
+        status: r.status,
+        createdAt: r.createdAt,
+        processedBy: r.processedBy,
+        processedAt: r.processedAt,
+        processingNotes: r.processingNotes,
+        modifiedAmount: r.modifiedAmount,
+        employeeName: r.user.name,
+        employeeNumber: r.user.employeeNumber,
+      })));
     } catch (error) {
       res.status(500).json({ message: "خطأ في جلب الطلبات" });
     }

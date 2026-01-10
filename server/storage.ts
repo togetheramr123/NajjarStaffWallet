@@ -46,6 +46,7 @@ export interface IStorage {
   
   getWithdrawalRequest(id: string): Promise<WithdrawalRequest | undefined>;
   getWithdrawalRequests(userId?: string): Promise<WithdrawalRequest[]>;
+  getAllWithdrawalRequestsWithUsers(): Promise<(WithdrawalRequest & { user: User })[]>;
   getPendingWithdrawalRequests(): Promise<(WithdrawalRequest & { user: User })[]>;
   getPendingWithdrawalRequestsByBranch(branchId: string): Promise<(WithdrawalRequest & { user: User })[]>;
   createWithdrawalRequest(data: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'status' | 'processedAt' | 'processedBy' | 'processingNotes' | 'modifiedAmount' | 'createdOnBehalfBy'> & { createdOnBehalfBy?: string | null }): Promise<WithdrawalRequest>;
@@ -202,6 +203,19 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(withdrawalRequests.createdAt));
     }
     return db.select().from(withdrawalRequests).orderBy(desc(withdrawalRequests.createdAt));
+  }
+
+  async getAllWithdrawalRequestsWithUsers(): Promise<(WithdrawalRequest & { user: User })[]> {
+    const results = await db
+      .select({
+        request: withdrawalRequests,
+        user: users,
+      })
+      .from(withdrawalRequests)
+      .innerJoin(users, eq(withdrawalRequests.userId, users.id))
+      .orderBy(desc(withdrawalRequests.createdAt));
+    
+    return results.map((r: { request: WithdrawalRequest; user: User }) => ({ ...r.request, user: r.user }));
   }
 
   async getPendingWithdrawalRequests(): Promise<(WithdrawalRequest & { user: User })[]> {
