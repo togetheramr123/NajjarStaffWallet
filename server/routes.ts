@@ -20,6 +20,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { sendPushNotification, sendPushToManagers, getVapidPublicKey } from "./pushService";
+import { registerObjectStorageRoutes, ObjectStorageService, ObjectNotFoundError } from "./replit_integrations/object_storage";
 
 declare global {
   namespace Express {
@@ -1090,6 +1091,9 @@ export async function registerRoutes(
       res.status(404).json({ message: "الملف غير موجود" });
     }
   });
+
+  // Register Object Storage routes for file uploads
+  registerObjectStorageRoutes(app);
 
   return httpServer;
 }
