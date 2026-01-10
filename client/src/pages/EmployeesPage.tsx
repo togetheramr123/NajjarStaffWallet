@@ -315,7 +315,7 @@ export default function EmployeesPage() {
                 onSubmit={(data) => bulkBalanceMutation.mutate(data)}
                 isLoading={bulkBalanceMutation.isPending}
               />
-              <AddEmployeeDialog onAdd={handleAddEmployee} isLoading={createEmployeeMutation.isPending} branches={branches || []} />
+              <AddEmployeeDialog onAdd={handleAddEmployee} isLoading={createEmployeeMutation.isPending} branches={branches || []} employeeCount={employees?.length || 0} />
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">

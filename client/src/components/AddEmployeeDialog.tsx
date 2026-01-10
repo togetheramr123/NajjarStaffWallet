@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Branch {
@@ -25,9 +25,15 @@ interface AddEmployeeDialogProps {
   }) => void;
   isLoading?: boolean;
   branches?: Branch[];
+  employeeCount?: number;
 }
 
-export default function AddEmployeeDialog({ onAdd, isLoading, branches = [] }: AddEmployeeDialogProps) {
+function generateEmployeeNumber(count: number): string {
+  const nextNumber = count + 1;
+  return `EMP${nextNumber.toString().padStart(4, '0')}`;
+}
+
+export default function AddEmployeeDialog({ onAdd, isLoading, branches = [], employeeCount = 0 }: AddEmployeeDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [employeeNumber, setEmployeeNumber] = useState('');
@@ -37,6 +43,12 @@ export default function AddEmployeeDialog({ onAdd, isLoading, branches = [] }: A
   const [role, setRole] = useState<'employee' | 'branch_manager' | 'manager'>('employee');
   const [branchId, setBranchId] = useState<string>('');
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (open && !employeeNumber) {
+      setEmployeeNumber(generateEmployeeNumber(employeeCount));
+    }
+  }, [open, employeeCount, employeeNumber]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,12 +138,12 @@ export default function AddEmployeeDialog({ onAdd, isLoading, branches = [] }: A
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="employeeNumber">رقم الموظف</Label>
+              <Label htmlFor="employeeNumber">رقم الموظف (تلقائي)</Label>
               <Input
                 id="employeeNumber"
                 value={employeeNumber}
                 onChange={(e) => setEmployeeNumber(e.target.value)}
-                placeholder="مثال: EMP001"
+                placeholder="EMP0001"
                 disabled={isLoading}
                 data-testid="input-employee-number"
               />
