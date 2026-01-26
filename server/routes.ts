@@ -20,7 +20,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { sendPushNotification, sendPushToManagers, getVapidPublicKey } from "./pushService";
-import { registerObjectStorageRoutes, ObjectStorageService, ObjectNotFoundError } from "./replit_integrations/object_storage";
+import { registerObjectStorageRoutes, ObjectStorageService, ObjectNotFoundError, objectStorageClient, parseObjectPath } from "./replit_integrations/object_storage";
 
 declare global {
   namespace Express {
@@ -45,15 +45,7 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => {
-      cb(null, uploadDir);
-    },
-    filename: (_req, file, cb) => {
-      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-      cb(null, uniqueSuffix + path.extname(file.originalname));
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowedTypes = ["image/jpeg", "image/png", "image/gif", "application/pdf"];
@@ -248,7 +240,29 @@ export async function registerRoutes(
       }
 
       const userId = req.user!.id;
-      const picturePath = `/uploads/${req.file.filename}`;
+      let picturePath: string;
+      
+      try {
+        const objectStorage = new ObjectStorageService();
+        const privateDir = objectStorage.getPrivateObjectDir();
+        const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(req.file.originalname)}`;
+        const objectPath = `${privateDir}/profiles/${uniqueFilename}`;
+        
+        const { bucketName, objectName } = parseObjectPath(objectPath);
+        const bucket = objectStorageClient.bucket(bucketName);
+        const file = bucket.file(objectName);
+        
+        await file.save(req.file.buffer, {
+          metadata: {
+            contentType: req.file.mimetype,
+          },
+        });
+        
+        picturePath = `/objects/profiles/${uniqueFilename}`;
+      } catch (objectStorageError) {
+        console.error("Object Storage upload failed:", objectStorageError);
+        return res.status(500).json({ message: "خطأ في رفع الصورة" });
+      }
 
       const updatedUser = await storage.updateUser(userId, { profilePicture: picturePath });
       if (!updatedUser) {
@@ -639,12 +653,38 @@ export async function registerRoutes(
         return res.status(400).json({ message: "المبلغ المطلوب يتجاوز الرصيد المتاح" });
       }
 
+      let attachmentPath: string | null = null;
+      
+      if (req.file) {
+        try {
+          const objectStorage = new ObjectStorageService();
+          const privateDir = objectStorage.getPrivateObjectDir();
+          const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(req.file.originalname)}`;
+          const objectPath = `${privateDir}/withdrawals/${uniqueFilename}`;
+          
+          const { bucketName, objectName } = parseObjectPath(objectPath);
+          const bucket = objectStorageClient.bucket(bucketName);
+          const file = bucket.file(objectName);
+          
+          await file.save(req.file.buffer, {
+            metadata: {
+              contentType: req.file.mimetype,
+            },
+          });
+          
+          attachmentPath = `/objects/withdrawals/${uniqueFilename}`;
+        } catch (objectStorageError) {
+          console.error("Object Storage upload failed:", objectStorageError);
+          return res.status(500).json({ message: "خطأ في رفع الملف" });
+        }
+      }
+
       const request = await storage.createWithdrawalRequest({
         userId: req.user!.id,
         amount: parsed.data.amount,
         beneficiary: parsed.data.beneficiary,
         notes: parsed.data.notes || null,
-        attachmentPath: req.file ? `/uploads/${req.file.filename}` : null,
+        attachmentPath,
       });
 
       sendPushToManagers(
@@ -1094,6 +1134,31 @@ export async function registerRoutes(
     }
   });
 
+  // Serve files from Object Storage for /objects/* paths
+  app.get("/objects/*", requireAuth, async (req, res) => {
+    try {
+      const objectStorage = new ObjectStorageService();
+      const privateDir = objectStorage.getPrivateObjectDir();
+      const requestedPath = req.path.replace("/objects/", "");
+      const fullPath = `${privateDir}/${requestedPath}`;
+      
+      const { bucketName, objectName } = parseObjectPath(fullPath);
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(objectName);
+      
+      const [exists] = await file.exists();
+      if (!exists) {
+        return res.status(404).json({ message: "الملف غير موجود" });
+      }
+      
+      await objectStorage.downloadObject(file, res);
+    } catch (error) {
+      console.error("Error serving object:", error);
+      res.status(500).json({ message: "خطأ في جلب الملف" });
+    }
+  });
+
+  // Fallback for old /uploads paths - try local files first
   app.use("/uploads", requireAuth, (req, res, next) => {
     const filePath = path.join(uploadDir, path.basename(req.path));
     if (fs.existsSync(filePath)) {
