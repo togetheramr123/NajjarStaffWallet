@@ -70,7 +70,16 @@ export default function EmployeesPage() {
       });
     },
     onError: (error: Error) => {
-      const message = error.message.includes("400") ? "اسم المستخدم مستخدم بالفعل" : error.message;
+      let message = "حدث خطأ أثناء إضافة الموظف";
+      try {
+        const jsonStart = error.message.indexOf("{");
+        if (jsonStart !== -1) {
+          const parsed = JSON.parse(error.message.slice(jsonStart));
+          message = parsed.message || message;
+        }
+      } catch {
+        message = error.message;
+      }
       toast({
         title: "خطأ",
         description: message,
