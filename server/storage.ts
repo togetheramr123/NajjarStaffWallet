@@ -51,6 +51,8 @@ export interface IStorage {
   getPendingWithdrawalRequestsByBranch(branchId: string): Promise<(WithdrawalRequest & { user: User })[]>;
   createWithdrawalRequest(data: Omit<WithdrawalRequest, 'id' | 'createdAt' | 'status' | 'processedAt' | 'processedBy' | 'processingNotes' | 'modifiedAmount' | 'createdOnBehalfBy'> & { createdOnBehalfBy?: string | null }): Promise<WithdrawalRequest>;
   processWithdrawalRequest(id: string, processedBy: string, status: 'approved' | 'rejected', notes?: string, modifiedAmount?: number): Promise<WithdrawalRequest | undefined>;
+  updateWithdrawalRequest(id: string, data: Partial<WithdrawalRequest>): Promise<WithdrawalRequest | undefined>;
+  deleteWithdrawalRequest(id: string): Promise<boolean>;
   
   getPendingAmountForUser(userId: string): Promise<number>;
   
@@ -289,6 +291,21 @@ export class DatabaseStorage implements IStorage {
     }
     
     return request;
+  }
+
+  async updateWithdrawalRequest(id: string, data: Partial<WithdrawalRequest>): Promise<WithdrawalRequest | undefined> {
+    const [request] = await db.update(withdrawalRequests)
+      .set(data)
+      .where(eq(withdrawalRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  async deleteWithdrawalRequest(id: string): Promise<boolean> {
+    const result = await db.delete(withdrawalRequests)
+      .where(eq(withdrawalRequests.id, id))
+      .returning();
+    return result.length > 0;
   }
 
   async getPendingAmountForUser(userId: string): Promise<number> {

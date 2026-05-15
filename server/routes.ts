@@ -940,6 +940,95 @@ export async function registerRoutes(
     }
   });
 
+  // Employee edits their own pending withdrawal request
+  const editRequestSchema = z.object({
+    amount: z.number().positive("المبلغ يجب أن يكون موجباً").optional(),
+    beneficiary: z.enum(["self", "family"]).optional(),
+    notes: z.string().optional(),
+  });
+
+  app.patch("/api/withdrawal-requests/:id", requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const parsed = editRequestSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({ message: "بيانات غير صالحة", errors: parsed.error.errors });
+    }
+
+    try {
+      const request = await storage.getWithdrawalRequest(id);
+      if (!request) {
+        return res.status(404).json({ message: "الطلب غير موجود" });
+      }
+
+      // Only the request owner can edit
+      if (request.userId !== req.user!.id) {
+        return res.status(403).json({ message: "لا يمكنك تعديل طلب موظف آخر" });
+      }
+
+      // Can only edit pending requests
+      if (request.status !== "pending") {
+        return res.status(400).json({ message: "لا يمكن تعديل طلب تمت معالجته" });
+      }
+
+      const { amount, beneficiary, notes } = parsed.data;
+
+      // If amount is changing, validate balance
+      if (amount && amount !== request.amount) {
+        const user = await storage.getUser(req.user!.id);
+        if (!user) {
+          return res.status(404).json({ message: "المستخدم غير موجود" });
+        }
+        const pendingAmount = await storage.getPendingAmountForUser(req.user!.id);
+        const availableBalance = user.balance - pendingAmount + request.amount; // add back old amount
+        if (amount > availableBalance) {
+          return res.status(400).json({ message: "المبلغ المطلوب يتجاوز الرصيد المتاح" });
+        }
+      }
+
+      const updateData: Record<string, unknown> = {};
+      if (amount !== undefined) updateData.amount = amount;
+      if (beneficiary !== undefined) updateData.beneficiary = beneficiary;
+      if (notes !== undefined) updateData.notes = notes;
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "لا توجد بيانات للتحديث" });
+      }
+
+      const updatedRequest = await storage.updateWithdrawalRequest(id, updateData);
+      res.json({ message: "تم تعديل الطلب بنجاح", request: updatedRequest });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في تعديل الطلب" });
+    }
+  });
+
+  // Employee cancels their own pending withdrawal request
+  app.delete("/api/withdrawal-requests/:id", requireAuth, async (req, res) => {
+    const { id } = req.params;
+
+    try {
+      const request = await storage.getWithdrawalRequest(id);
+      if (!request) {
+        return res.status(404).json({ message: "الطلب غير موجود" });
+      }
+
+      // Only the request owner can cancel
+      if (request.userId !== req.user!.id) {
+        return res.status(403).json({ message: "لا يمكنك إلغاء طلب موظف آخر" });
+      }
+
+      // Can only cancel pending requests
+      if (request.status !== "pending") {
+        return res.status(400).json({ message: "لا يمكن إلغاء طلب تمت معالجته" });
+      }
+
+      await storage.deleteWithdrawalRequest(id);
+      res.json({ message: "تم إلغاء الطلب بنجاح" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في إلغاء الطلب" });
+    }
+  });
+
   app.get("/api/stats", requireBranchManagerOrAbove, async (req, res) => {
     try {
       const allEmployees = await storage.getAllUsers();

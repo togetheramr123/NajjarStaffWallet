@@ -98,6 +98,36 @@ export default function EmployeeDashboard() {
     refetchInterval: 15000,
   });
 
+  const editRequestMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { amount?: number; beneficiary?: "self" | "family"; notes?: string } }) => {
+      const res = await apiRequest("PATCH", `/api/withdrawal-requests/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/withdrawal-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/balance"] });
+      toast({ title: "تم التعديل", description: "تم تعديل الطلب بنجاح" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const cancelRequestMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/withdrawal-requests/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/withdrawal-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/balance"] });
+      toast({ title: "تم الإلغاء", description: "تم إلغاء الطلب بنجاح" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    },
+  });
+
   const withdrawMutation = useMutation({
     mutationFn: async (formData: FormData) => {
       const res = await fetch("/api/withdrawal-requests", {
@@ -273,6 +303,10 @@ export default function EmployeeDashboard() {
                 createdOnBehalfBy: r.createdOnBehalfBy,
               }))}
               onViewAttachment={handleViewAttachment}
+              onEditRequest={(id, data) => editRequestMutation.mutate({ id, data })}
+              onCancelRequest={(id) => cancelRequestMutation.mutate(id)}
+              isEditing={editRequestMutation.isPending}
+              isCancelling={cancelRequestMutation.isPending}
             />
           )}
         </TabsContent>
