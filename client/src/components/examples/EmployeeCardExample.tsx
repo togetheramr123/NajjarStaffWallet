@@ -4,6 +4,7 @@ import EmployeeCard from '../EmployeeCard';
 const mockEmployee = {
   id: '1',
   name: 'أحمد محمد العلي',
+  username: 'ahmed.mohamed',
   employeeNumber: 'EMP001',
   balance: 5000,
   role: 'employee' as const,

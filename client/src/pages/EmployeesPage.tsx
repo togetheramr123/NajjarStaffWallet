@@ -20,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 interface Employee {
   id: string;
   name: string;
+  username: string;
   employeeNumber: string;
   balance: number;
   role: "employee" | "branch_manager" | "manager";
@@ -133,8 +134,8 @@ export default function EmployeesPage() {
   });
 
   const editEmployeeMutation = useMutation({
-    mutationFn: async ({ id, name, employeeNumber, password, role, branchId }: { id: string; name: string; employeeNumber: string; password?: string; role: string; branchId?: string }) => {
-      const res = await apiRequest("PATCH", `/api/employees/${id}`, { name, employeeNumber, password, role, branchId });
+    mutationFn: async ({ id, name, username, employeeNumber, password, role, branchId }: { id: string; name: string; username: string; employeeNumber: string; password?: string; role: string; branchId?: string }) => {
+      const res = await apiRequest("PATCH", `/api/employees/${id}`, { name, username, employeeNumber, password, role, branchId });
       return res.json();
     },
     onSuccess: () => {
@@ -266,7 +267,7 @@ export default function EmployeesPage() {
     }
   };
 
-  const handleEditEmployee = (data: { id: string; name: string; employeeNumber: string; password?: string; role: string; branchId?: string }) => {
+  const handleEditEmployee = (data: { id: string; name: string; username: string; employeeNumber: string; password?: string; role: string; branchId?: string }) => {
     editEmployeeMutation.mutate(data);
   };
 
@@ -391,6 +392,7 @@ export default function EmployeesPage() {
                     employee={{
                       id: employee.id,
                       name: employee.name,
+                      username: employee.username,
                       employeeNumber: employee.employeeNumber,
                       balance: employee.balance,
                       role: employee.role,
@@ -457,6 +459,7 @@ export default function EmployeesPage() {
                   employee={{
                     id: employee.id,
                     name: employee.name,
+                    username: employee.username,
                     employeeNumber: employee.employeeNumber,
                     balance: employee.balance,
                     role: employee.role,

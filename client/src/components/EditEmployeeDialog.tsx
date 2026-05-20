@@ -27,7 +27,7 @@ interface EditEmployeeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   employee: Employee | null;
-  onSave: (data: { id: string; name: string; employeeNumber: string; password?: string; role: string; branchId?: string }) => void;
+  onSave: (data: { id: string; name: string; username: string; employeeNumber: string; password?: string; role: string; branchId?: string }) => void;
   isLoading?: boolean;
   branches?: Branch[];
 }
@@ -42,6 +42,7 @@ export default function EditEmployeeDialog({
 }: EditEmployeeDialogProps) {
   const { toast } = useToast();
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [employeeNumber, setEmployeeNumber] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -56,6 +57,7 @@ export default function EditEmployeeDialog({
   useEffect(() => {
     if (employee) {
       setName(employee.name);
+      setUsername(employee.username || "");
       setEmployeeNumber(employee.employeeNumber);
       setRole(employee.role);
       setBranchId(employee.branchId || "none");
@@ -80,6 +82,7 @@ export default function EditEmployeeDialog({
     onSave({
       id: employee.id,
       name,
+      username,
       employeeNumber,
       password: password || undefined,
       role,
@@ -107,6 +110,17 @@ export default function EditEmployeeDialog({
                 placeholder="الاسم الكامل"
                 disabled={isLoading}
                 data-testid="input-edit-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-username">اسم المستخدم (للدخول)</Label>
+              <Input
+                id="edit-username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="اسم المستخدم"
+                disabled={isLoading}
+                data-testid="input-edit-username"
               />
             </div>
             <div className="space-y-2">

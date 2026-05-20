@@ -8,6 +8,7 @@ import { MoreVertical, Eye, Edit, Wallet, Ban, Building2, Banknote, Trash2 } fro
 interface Employee {
   id: string;
   name: string;
+  username: string;
   employeeNumber: string;
   balance: number;
   role: 'employee' | 'branch_manager' | 'manager';
@@ -53,7 +54,10 @@ export default function EmployeeCard({
               <h3 className="font-semibold text-base" data-testid={`text-name-${employee.id}`}>
                 {employee.name}
               </h3>
-              <p className="text-xs text-muted-foreground">#{employee.employeeNumber}</p>
+              <div className="flex flex-col mt-0.5">
+                <span className="text-xs text-muted-foreground">#{employee.employeeNumber}</span>
+                <span className="text-xs font-medium text-primary mt-0.5">تسجيل الدخول: {employee.username}</span>
+              </div>
             </div>
           </div>
           {!viewOnly && (

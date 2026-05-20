@@ -113,8 +113,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
+    const trimmedUsername = username.trim();
+    const [user] = await db.select().from(users).where(eq(users.username, trimmedUsername));
+    if (user) return user;
+    
+    // Fallback if the user was created with a trailing space in the database
+    const allUsers = await db.select().from(users);
+    return allUsers.find(u => u.username.trim() === trimmedUsername);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
