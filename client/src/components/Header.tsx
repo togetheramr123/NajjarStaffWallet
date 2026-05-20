@@ -52,7 +52,7 @@ export default function Header({ title, notificationCount = 0, onNotificationCli
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 py-3">
       <div className="flex items-center gap-3">
-        <SidebarTrigger data-testid="button-sidebar-toggle" />
+        <SidebarTrigger className="hidden md:flex" data-testid="button-sidebar-toggle" />
         {showBackButton && (
           <Button
             variant="ghost"

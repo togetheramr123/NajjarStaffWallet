@@ -21,6 +21,7 @@ import BranchManagerPersonalPage from "@/pages/BranchManagerPersonalPage";
 import MessagesPage from "@/pages/MessagesPage";
 import SettingsPage from "@/pages/SettingsPage";
 import ForcePasswordChangeDialog from "@/components/ForcePasswordChangeDialog";
+import BottomNav from "@/components/BottomNav";
 
 export { useAuth };
 
@@ -148,10 +149,11 @@ function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => v
             onNotificationClick={() => setLocation("/approvals")}
             onLogout={onLogout}
           />
-          <main className="flex-1 overflow-auto bg-background">
+          <main className="flex-1 overflow-auto bg-background pb-16 md:pb-0">
             <Router userRole={user.role} />
           </main>
         </div>
+        <BottomNav notificationCount={pendingCount} />
       </div>
       <ForcePasswordChangeDialog 
         open={showPasswordChangeDialog} 

@@ -44,7 +44,7 @@ export default function EmployeeCard({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3">
-            <Avatar className="h-12 w-12">
+            <Avatar className="h-10 w-10 rounded-md">
               <AvatarFallback className="bg-primary text-primary-foreground text-lg">
                 {initials}
               </AvatarFallback>
