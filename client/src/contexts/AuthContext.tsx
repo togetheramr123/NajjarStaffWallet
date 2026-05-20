@@ -13,6 +13,7 @@ export interface User {
   profilePicture: string | null;
   branchId: string | null;
   createdAt: string;
+  requiresPasswordChange?: boolean;
 }
 
 interface AuthContextType {

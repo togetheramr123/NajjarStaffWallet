@@ -5,6 +5,7 @@ import AdjustBalanceDialog from "@/components/AdjustBalanceDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import AbuOmarBanner from "@/components/AbuOmarBanner";
 import { Button } from "@/components/ui/button";
 import { Users, Wallet, Clock, CheckCircle, TrendingUp, ArrowLeft, Loader2, UserCircle, Plus, Minus } from "lucide-react";
 import { Link } from "wouter";
@@ -201,6 +202,8 @@ export default function ManagerDashboard() {
           </Link>
         </div>
       </div>
+
+      <AbuOmarBanner />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard

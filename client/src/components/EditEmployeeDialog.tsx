@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -44,8 +44,14 @@ export default function EditEmployeeDialog({
   const [name, setName] = useState("");
   const [employeeNumber, setEmployeeNumber] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<"employee" | "branch_manager" | "manager">("employee");
   const [branchId, setBranchId] = useState<string>("");
+
+  const convertArabicNumerals = (str: string) => {
+    const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    return str.replace(/[٠-٩]/g, (w) => arabicNumbers.indexOf(w).toString());
+  };
 
   useEffect(() => {
     if (employee) {
@@ -116,15 +122,32 @@ export default function EditEmployeeDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-password">كلمة المرور الجديدة (اختياري)</Label>
-              <Input
-                id="edit-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="اتركها فارغة لعدم التغيير"
-                disabled={isLoading}
-                data-testid="input-edit-password"
-              />
+              <div className="relative">
+                <Input
+                  id="edit-password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(convertArabicNumerals(e.target.value))}
+                  placeholder="اتركها فارغة لعدم التغيير"
+                  disabled={isLoading}
+                  data-testid="input-edit-password"
+                  className="pl-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute left-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-role">الصلاحية</Label>

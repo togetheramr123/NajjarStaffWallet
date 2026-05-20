@@ -19,7 +19,7 @@ import {
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { sendPushNotification, sendPushToManagers, getVapidPublicKey } from "./pushService";
+import { sendPushNotification, sendPushToManagers, sendPushToBranchManagers, getVapidPublicKey } from "./pushService";
 import { registerObjectStorageRoutes, ObjectStorageService, ObjectNotFoundError, objectStorageClient, parseObjectPath } from "./replit_integrations/object_storage";
 
 declare global {
@@ -144,19 +144,23 @@ export async function registerRoutes(
       return res.status(400).json({ message: "بيانات غير صالحة", errors: parsed.error.errors });
     }
 
-    passport.authenticate("local", (err: Error | null, user: User | false, info: { message: string }) => {
+    passport.authenticate("local", async (err: Error | null, user: User | false, info: { message: string }) => {
       if (err) {
         return next(err);
       }
       if (!user) {
         return res.status(401).json({ message: info?.message || "فشل تسجيل الدخول" });
       }
+      
+      // Check if password matches 123456 to enforce password change
+      const requiresPasswordChange = await comparePasswords("123456", user.password);
+      
       req.logIn(user, (err) => {
         if (err) {
           return next(err);
         }
         const { password: _, ...safeUser } = user;
-        return res.json({ user: safeUser });
+        return res.json({ user: { ...safeUser, requiresPasswordChange } });
       });
     })(req, res, next);
   });
@@ -170,9 +174,10 @@ export async function registerRoutes(
     });
   });
 
-  app.get("/api/auth/me", requireAuth, (req, res) => {
+  app.get("/api/auth/me", requireAuth, async (req, res) => {
+    const requiresPasswordChange = await comparePasswords("123456", req.user!.password);
     const { password: _, ...safeUser } = req.user!;
-    res.json({ user: safeUser });
+    res.json({ user: { ...safeUser, requiresPasswordChange } });
   });
 
   // Employee profile update (name and password)
@@ -328,7 +333,7 @@ export async function registerRoutes(
         name: parsed.data.name,
         employeeNumber: parsed.data.employeeNumber,
         username: parsed.data.username,
-        password: parsed.data.password,
+        password: "123456", // Default unified password
         role: parsed.data.role,
         status: "active",
         balance: parsed.data.initialBalance,
@@ -687,11 +692,22 @@ export async function registerRoutes(
         attachmentPath,
       });
 
+      // Send to Main Managers
       sendPushToManagers(
         "طلب سحب جديد",
         `${user.name} طلب سحب ${parsed.data.amount.toLocaleString('ar-EG')} ج.م`,
         '/'
       ).catch((err: Error) => console.error('Push to managers failed:', err));
+
+      // Send to Branch Manager
+      if (user.branchId) {
+        sendPushToBranchManagers(
+          user.branchId,
+          "طلب سحب جديد",
+          `${user.name} طلب سحب ${parsed.data.amount.toLocaleString('ar-EG')} ج.م`,
+          '/'
+        ).catch((err: Error) => console.error('Push to branch managers failed:', err));
+      }
 
       res.status(201).json({ 
         message: "تم إرسال الطلب بنجاح",
@@ -755,7 +771,20 @@ export async function registerRoutes(
         attachmentPath: null,
         createdOnBehalfBy: req.user!.id,
       });
+      // Send to Main Managers
+      sendPushToManagers(
+        "طلب سحب جديد (عن طريق الإدارة)",
+        `${employee.name} لديه طلب سحب بـ ${amount.toLocaleString('ar-EG')} ج.م`,
+        '/'
+      ).catch((err: Error) => console.error('Push to managers failed:', err));
 
+      // Also notify the employee themselves
+      sendPushNotification(
+        employeeId,
+        "تم تقديم طلب سحب لك",
+        `تم تقديم طلب سحب بـ ${amount.toLocaleString('ar-EG')} ج.م نيابة عنك`,
+        '/withdraw'
+      ).catch((err: Error) => console.error('Push to employee failed:', err));
       res.status(201).json({ 
         message: "تم إرسال الطلب بنجاح بالنيابة عن الموظف",
         request: {
@@ -921,6 +950,28 @@ export async function registerRoutes(
         sendPushNotification(request.userId, "تم رفض طلب السحب", rejectMessage, '/').catch((err: Error) => console.error('Push failed:', err));
       }
       
+      const processingUser = await storage.getUser(req.user!.id);
+      const processingUserName = processingUser?.name || "الإدارة";
+
+      // If a branch manager processed it, notify the main manager
+      if (processingUser?.role === "branch_manager") {
+        sendPushToManagers(
+          "معالجة طلب سحب",
+          `قام ${processingUserName} بـ ${status === "approved" ? "الموافقة على" : "رفض"} طلب سحب لـ ${employee?.name}`,
+          '/'
+        ).catch((err: Error) => console.error('Push to managers failed:', err));
+      }
+      
+      // If a main manager processed it, notify the branch manager
+      if (processingUser?.role === "manager" && employee?.branchId) {
+        sendPushToBranchManagers(
+          employee.branchId,
+          "معالجة طلب سحب",
+          `قامت الإدارة بـ ${status === "approved" ? "الموافقة على" : "رفض"} طلب سحب لـ ${employee.name}`,
+          '/'
+        ).catch((err: Error) => console.error('Push to branch managers failed:', err));
+      }
+
       res.json({
         ...processedRequest,
         receipt: status === "approved" ? {
@@ -1254,6 +1305,35 @@ export async function registerRoutes(
       res.sendFile(filePath);
     } else {
       res.status(404).json({ message: "الملف غير موجود" });
+    }
+  });
+
+  // System Settings routes
+  app.get("/api/settings/:key", requireAuth, async (req, res) => {
+    try {
+      const setting = await storage.getSystemSetting(req.params.key);
+      res.json(setting || { key: req.params.key, value: "" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في جلب الإعدادات" });
+    }
+  });
+
+  app.post("/api/settings", requireManager, async (req, res) => {
+    const schema = z.object({
+      key: z.string(),
+      value: z.string(),
+    });
+    
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "بيانات غير صالحة" });
+    }
+
+    try {
+      const setting = await storage.updateSystemSetting(parsed.data.key, parsed.data.value);
+      res.json(setting);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في حفظ الإعدادات" });
     }
   });
 

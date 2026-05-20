@@ -4,6 +4,8 @@ import WithdrawalForm from "@/components/WithdrawalForm";
 import AccountStatement from "@/components/AccountStatement";
 import WithdrawalRequestReceipt from "@/components/WithdrawalRequestReceipt";
 import RequestTracker from "@/components/RequestTracker";
+import AbuOmarBanner from "@/components/AbuOmarBanner";
+import ImagePreviewDialog from "@/components/ImagePreviewDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -67,6 +69,7 @@ export default function EmployeeDashboard() {
   const { user } = useAuth();
   const [showReceipt, setShowReceipt] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState<SubmittedRequest | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const getTabFromLocation = (loc: string) => {
     if (loc === "/withdraw") return "withdraw";
@@ -188,7 +191,12 @@ export default function EmployeeDashboard() {
   };
 
   const handleViewAttachment = (attachmentPath: string) => {
-    window.open(attachmentPath, "_blank");
+    // If it's an image, preview it inline
+    if (/\.(jpg|jpeg|png|gif|webp)$/i.test(attachmentPath) || attachmentPath.startsWith('data:image')) {
+      setPreviewImage(attachmentPath);
+    } else {
+      window.open(attachmentPath, "_blank");
+    }
   };
 
   if (balanceLoading) {
@@ -225,6 +233,8 @@ export default function EmployeeDashboard() {
         </h2>
         <p className="text-muted-foreground">إليك ملخص رصيدك ومعاملاتك</p>
       </div>
+
+      <AbuOmarBanner />
 
       <BalanceCard currentBalance={currentBalance} pendingAmount={pendingAmount} monthlyFee={monthlyFee} />
 
@@ -346,6 +356,12 @@ export default function EmployeeDashboard() {
           }
         }}
         request={submittedRequest}
+      />
+
+      <ImagePreviewDialog
+        open={!!previewImage}
+        onOpenChange={(open) => !open && setPreviewImage(null)}
+        imageUrl={previewImage}
       />
     </div>
   );

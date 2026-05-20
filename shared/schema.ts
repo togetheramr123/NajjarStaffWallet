@@ -84,6 +84,12 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const systemSettings = pgTable("system_settings", {
+  key: varchar("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
@@ -146,7 +152,6 @@ export const createEmployeeSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
   employeeNumber: z.string().min(1, "رقم الموظف مطلوب"),
   username: z.string().min(3, "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"),
-  password: z.string().min(4, "كلمة المرور يجب أن تكون 4 أحرف على الأقل"),
   role: z.enum(["employee", "branch_manager", "manager"]).default("employee"),
   initialBalance: z.number().min(0).default(0),
   branchId: z.string().optional(),
@@ -186,6 +191,7 @@ export type Notification = typeof notifications.$inferSelect;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type BroadcastMessage = typeof broadcastMessages.$inferSelect;
 export type MessageReadStatus = typeof messageReadStatus.$inferSelect;
+export type SystemSetting = typeof systemSettings.$inferSelect;
 
 export const insertBroadcastMessageSchema = createInsertSchema(broadcastMessages).omit({
   id: true,

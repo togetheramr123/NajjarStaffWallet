@@ -18,7 +18,9 @@ import {
   branches,
   pushSubscriptions,
   broadcastMessages,
-  messageReadStatus
+  messageReadStatus,
+  systemSettings,
+  type SystemSetting
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, or, isNull } from "drizzle-orm";
@@ -69,12 +71,15 @@ export interface IStorage {
   savePushSubscription(userId: string, subscription: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<PushSubscription>;
   getPushSubscriptions(userId: string): Promise<PushSubscription[]>;
   getAllManagerPushSubscriptions(): Promise<PushSubscription[]>;
+  getBranchManagerPushSubscriptions(branchId: string): Promise<PushSubscription[]>;
   deletePushSubscription(userId: string, endpoint: string): Promise<boolean>;
   
   createBroadcastMessage(data: { senderId: string; targetType: 'all' | 'branch' | 'individual'; targetBranchId?: string | null; targetUserId?: string | null; title: string; content: string }): Promise<BroadcastMessage>;
   getMessagesForUser(userId: string, userBranchId: string | null): Promise<(BroadcastMessage & { sender: User; isRead: boolean })[]>;
   markMessageAsRead(messageId: string, userId: string): Promise<MessageReadStatus>;
   getUnreadMessagesCount(userId: string, userBranchId: string | null): Promise<number>;
+  getSystemSetting(key: string): Promise<SystemSetting | undefined>;
+  updateSystemSetting(key: string, value: string): Promise<SystemSetting>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -451,6 +456,24 @@ export class DatabaseStorage implements IStorage {
     return allSubs;
   }
 
+  async getBranchManagerPushSubscriptions(branchId: string): Promise<PushSubscription[]> {
+    const managers = await db.select().from(users).where(
+      and(
+        eq(users.role, 'branch_manager'),
+        eq(users.branchId, branchId)
+      )
+    );
+    const managerIds = managers.map(m => m.id);
+    if (managerIds.length === 0) return [];
+    
+    const allSubs: PushSubscription[] = [];
+    for (const managerId of managerIds) {
+      const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, managerId));
+      allSubs.push(...subs);
+    }
+    return allSubs;
+  }
+
   async deletePushSubscription(userId: string, endpoint: string): Promise<boolean> {
     const result = await db.delete(pushSubscriptions).where(
       and(
@@ -522,6 +545,26 @@ export class DatabaseStorage implements IStorage {
   async getUnreadMessagesCount(userId: string, userBranchId: string | null): Promise<number> {
     const messages = await this.getMessagesForUser(userId, userBranchId);
     return messages.filter(m => !m.isRead).length;
+  }
+
+  async getSystemSetting(key: string): Promise<SystemSetting | undefined> {
+    const [setting] = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, key));
+    return setting;
+  }
+
+  async updateSystemSetting(key: string, value: string): Promise<SystemSetting> {
+    const [setting] = await db
+      .insert(systemSettings)
+      .values({ key, value })
+      .onConflictDoUpdate({
+        target: systemSettings.key,
+        set: { value, updatedAt: new Date() },
+      })
+      .returning();
+    return setting;
   }
 }
 

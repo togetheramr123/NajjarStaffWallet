@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, Loader2, Building2 } from "lucide-react";
+import { ArrowRight, Loader2, Building2, Eye, EyeOff } from "lucide-react";
 import { useLocation } from "wouter";
 
 const loginSchema = z.object({
@@ -27,6 +27,12 @@ export default function LoginPage({ onBack }: LoginPageProps) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const convertArabicNumerals = (str: string) => {
+    const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    return str.replace(/[٠-٩]/g, (w) => arabicNumbers.indexOf(w).toString());
+  };
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -106,13 +112,31 @@ export default function LoginPage({ onBack }: LoginPageProps) {
                     <FormItem>
                       <FormLabel>كلمة المرور</FormLabel>
                       <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="أدخل كلمة المرور"
-                          {...field}
-                          disabled={isLoading}
-                          data-testid="input-password"
-                        />
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="أدخل كلمة المرور"
+                            {...field}
+                            onChange={(e) => field.onChange(convertArabicNumerals(e.target.value))}
+                            disabled={isLoading}
+                            data-testid="input-password"
+                            className="pl-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute left-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowPassword(!showPassword)}
+                            disabled={isLoading}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </Button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

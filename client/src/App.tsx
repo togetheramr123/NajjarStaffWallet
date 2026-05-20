@@ -19,6 +19,8 @@ import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth, type User } from "@/contexts/AuthContext";
 import BranchManagerPersonalPage from "@/pages/BranchManagerPersonalPage";
 import MessagesPage from "@/pages/MessagesPage";
+import SettingsPage from "@/pages/SettingsPage";
+import ForcePasswordChangeDialog from "@/components/ForcePasswordChangeDialog";
 
 export { useAuth };
 
@@ -33,7 +35,7 @@ function Router({ userRole }: { userRole: "employee" | "branch_manager" | "manag
         <Route path="/messages" component={MessagesPage} />
         <Route path="/operations" component={ManagerDashboard} />
         <Route path="/reports" component={ManagerDashboard} />
-        <Route path="/settings" component={ManagerDashboard} />
+        <Route path="/settings" component={SettingsPage} />
         <Route path="/profile" component={ProfilePage} />
         <Route component={NotFound} />
       </Switch>
@@ -73,6 +75,9 @@ function Router({ userRole }: { userRole: "employee" | "branch_manager" | "manag
 function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [location, setLocation] = useLocation();
   const [pendingCount, setPendingCount] = useState(0);
+  const [showPasswordChangeDialog, setShowPasswordChangeDialog] = useState(
+    !!user.requiresPasswordChange
+  );
 
   const { data: pendingData } = useQuery({
     queryKey: ["/api/withdrawal-requests/pending"],
@@ -148,6 +153,10 @@ function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => v
           </main>
         </div>
       </div>
+      <ForcePasswordChangeDialog 
+        open={showPasswordChangeDialog} 
+        onOpenChange={setShowPasswordChangeDialog} 
+      />
     </SidebarProvider>
   );
 }

@@ -73,6 +73,37 @@ export async function sendPushToManagers(title: string, body: string, url?: stri
   }
 }
 
+export async function sendPushToBranchManagers(branchId: string, title: string, body: string, url?: string) {
+  if (!vapidPublicKey || !vapidPrivateKey) {
+    return;
+  }
+
+  try {
+    const subscriptions = await storage.getBranchManagerPushSubscriptions(branchId);
+    
+    for (const sub of subscriptions) {
+      try {
+        await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: {
+              p256dh: sub.p256dh,
+              auth: sub.auth,
+            },
+          },
+          JSON.stringify({ title, body, url: url || '/' })
+        );
+      } catch (error: any) {
+        if (error.statusCode === 410 || error.statusCode === 404) {
+          await storage.deletePushSubscription(sub.userId, sub.endpoint);
+        }
+      }
+    }
+  } catch (error) {
+    log(`Error sending push to branch managers: ${error}`, 'push');
+  }
+}
+
 export function getVapidPublicKey(): string | undefined {
   return vapidPublicKey;
 }

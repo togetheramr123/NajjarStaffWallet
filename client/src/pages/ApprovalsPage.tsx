@@ -1,6 +1,7 @@
 import { useState } from "react";
 import ApprovalCard from "@/components/ApprovalCard";
 import WithdrawalReceipt from "@/components/WithdrawalReceipt";
+import ImagePreviewDialog from "@/components/ImagePreviewDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +54,7 @@ export default function ApprovalsPage() {
   const [activeTab, setActiveTab] = useState("pending");
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: pendingRequests, isLoading: pendingLoading } = useQuery<PendingRequest[]>({
@@ -137,13 +139,16 @@ export default function ApprovalsPage() {
 
   const handleViewAttachment = (requestId: string) => {
     const pendingReq = pendingRequests?.find(r => r.id === requestId);
-    if (pendingReq?.attachmentPath) {
-      window.open(pendingReq.attachmentPath, "_blank");
-      return;
-    }
     const allReq = allRequests?.find(r => r.id === requestId);
-    if (allReq?.attachmentPath) {
-      window.open(allReq.attachmentPath, "_blank");
+    
+    const attachmentPath = pendingReq?.attachmentPath || allReq?.attachmentPath;
+    
+    if (attachmentPath) {
+      if (/\.(jpg|jpeg|png|gif|webp)$/i.test(attachmentPath) || attachmentPath.startsWith('data:image')) {
+        setPreviewImage(attachmentPath);
+      } else {
+        window.open(attachmentPath, "_blank");
+      }
     }
   };
 
@@ -265,6 +270,12 @@ export default function ApprovalsPage() {
         open={receiptOpen}
         onOpenChange={setReceiptOpen}
         receipt={receiptData}
+      />
+
+      <ImagePreviewDialog
+        open={!!previewImage}
+        onOpenChange={(open) => !open && setPreviewImage(null)}
+        imageUrl={previewImage}
       />
     </div>
   );

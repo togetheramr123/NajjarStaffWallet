@@ -37,8 +37,6 @@ export default function AddEmployeeDialog({ onAdd, isLoading, branches = [], emp
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [employeeNumber, setEmployeeNumber] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
   const [role, setRole] = useState<'employee' | 'branch_manager' | 'manager'>('employee');
   const [branchId, setBranchId] = useState<string>('');
@@ -53,28 +51,19 @@ export default function AddEmployeeDialog({ onAdd, isLoading, branches = [], emp
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !employeeNumber || !username || !password) {
+    if (!name || !employeeNumber) {
       toast({
         title: "خطأ",
-        description: "الرجاء إدخال جميع البيانات المطلوبة",
+        description: "الرجاء إدخال اسم الموظف",
         variant: "destructive",
       });
       return;
     }
 
-    if (username.length < 3) {
+    if (name.length < 3) {
       toast({
         title: "خطأ",
-        description: "اسم المستخدم يجب أن يكون 3 أحرف على الأقل",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (password.length < 4) {
-      toast({
-        title: "خطأ",
-        description: "كلمة المرور يجب أن تكون 4 أحرف على الأقل",
+        description: "الاسم يجب أن يكون 3 أحرف على الأقل",
         variant: "destructive",
       });
       return;
@@ -92,8 +81,8 @@ export default function AddEmployeeDialog({ onAdd, isLoading, branches = [], emp
     onAdd({
       name,
       employeeNumber,
-      username,
-      password,
+      username: name, // Using name as username as requested
+      password: "123456", // Hardcoded unified password
       initialBalance: parseFloat(initialBalance) || 0,
       role,
       branchId: branchId && branchId !== 'none' ? branchId : undefined,
@@ -102,8 +91,6 @@ export default function AddEmployeeDialog({ onAdd, isLoading, branches = [], emp
     setOpen(false);
     setName('');
     setEmployeeNumber('');
-    setUsername('');
-    setPassword('');
     setInitialBalance('');
     setRole('employee');
     setBranchId('');
@@ -135,40 +122,6 @@ export default function AddEmployeeDialog({ onAdd, isLoading, branches = [], emp
                 placeholder="الاسم الكامل"
                 disabled={isLoading}
                 data-testid="input-employee-name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="employeeNumber">رقم الموظف (تلقائي)</Label>
-              <Input
-                id="employeeNumber"
-                value={employeeNumber}
-                onChange={(e) => setEmployeeNumber(e.target.value)}
-                placeholder="EMP0001"
-                disabled={isLoading}
-                data-testid="input-employee-number"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="username">اسم المستخدم</Label>
-              <Input
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="اسم المستخدم لتسجيل الدخول"
-                disabled={isLoading}
-                data-testid="input-username"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">كلمة المرور</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="كلمة المرور"
-                disabled={isLoading}
-                data-testid="input-password"
               />
             </div>
             <div className="space-y-2">

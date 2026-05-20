@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Search, Loader2, Users, Building2 } from "lucide-react";
+import { Search, Loader2, Users, Building2, Printer } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -319,6 +319,10 @@ export default function EmployeesPage() {
 
           <TabsContent value="employees" className="mt-4 space-y-4">
             <div className="flex items-center justify-end gap-2 flex-wrap">
+              <Button variant="outline" onClick={() => window.print()} className="print:hidden">
+                <Printer className="h-4 w-4 ml-2" />
+                طباعة كشف
+              </Button>
               <BulkBalanceDialog
                 employees={bulkBalanceEmployees}
                 onSubmit={(data) => bulkBalanceMutation.mutate(data)}
@@ -473,6 +477,32 @@ export default function EmployeesPage() {
           )}
         </>
       )}
+
+      <div className="hidden print:block print:p-8" dir="rtl">
+        <h1 className="text-2xl font-bold mb-6 text-center">بيانات الموظفين</h1>
+        <table className="w-full border-collapse border border-gray-300">
+          <thead>
+            <tr>
+              <th className="border border-gray-300 p-2 bg-gray-100">م</th>
+              <th className="border border-gray-300 p-2 bg-gray-100">رقم الموظف</th>
+              <th className="border border-gray-300 p-2 bg-gray-100">اسم الموظف / اسم المستخدم</th>
+              <th className="border border-gray-300 p-2 bg-gray-100">الفرع</th>
+              <th className="border border-gray-300 p-2 bg-gray-100">الرقم السري الموحد</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredEmployees.map((emp, index) => (
+              <tr key={emp.id}>
+                <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
+                <td className="border border-gray-300 p-2 text-center">{emp.employeeNumber}</td>
+                <td className="border border-gray-300 p-2 text-center">{emp.name}</td>
+                <td className="border border-gray-300 p-2 text-center">{getBranchName(emp.branchId)}</td>
+                <td className="border border-gray-300 p-2 text-center" dir="ltr">123456</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {selectedEmployee && (
         <AdjustBalanceDialog
