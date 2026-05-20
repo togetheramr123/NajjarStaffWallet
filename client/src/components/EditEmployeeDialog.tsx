@@ -92,15 +92,15 @@ export default function EditEmployeeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>تعديل بيانات الموظف</DialogTitle>
           <DialogDescription>
             تعديل بيانات {employee?.name}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="grid gap-4 py-4 overflow-y-auto flex-1 px-1">
             <div className="space-y-2">
               <Label htmlFor="edit-name">اسم الموظف</Label>
               <Input
@@ -162,6 +162,9 @@ export default function EditEmployeeDialog({
                   )}
                 </Button>
               </div>
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                * لأسباب أمنية (التشفير)، لا يمكن عرض كلمة المرور الحالية. لتغييرها، اكتب كلمة جديدة هنا، أو اترك الحقل فارغاً للاحتفاظ بالكلمة الحالية.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-role">الصلاحية</Label>
@@ -195,7 +198,7 @@ export default function EditEmployeeDialog({
               </div>
             )}
           </div>
-          <DialogFooter className="pt-4 border-t mt-2">
+          <DialogFooter className="mt-4 pt-2 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
               إلغاء
             </Button>
