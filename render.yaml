@@ -7,6 +7,6 @@ services:
     startCommand: npm start
     envVars:
       - key: NODE_VERSION
-        value: 20.16.11
+        value: 20
       - key: DATABASE_URL
         sync: false
