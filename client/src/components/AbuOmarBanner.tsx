@@ -3,7 +3,7 @@ import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function AbuOmarBanner() {
-  const { data: bannerSetting, isLoading } = useQuery({
+  const { data: bannerSetting, isLoading } = useQuery<{ value: string }>({
     queryKey: ["/api/settings/abu_omar_banner"],
     staleTime: 60000,
   });

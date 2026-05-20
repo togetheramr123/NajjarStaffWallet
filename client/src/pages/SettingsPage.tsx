@@ -12,7 +12,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const [bannerText, setBannerText] = useState("");
 
-  const { data: bannerSetting, isLoading } = useQuery({
+  const { data: bannerSetting, isLoading } = useQuery<{ value: string }>({
     queryKey: ["/api/settings/abu_omar_banner"],
   });
 
