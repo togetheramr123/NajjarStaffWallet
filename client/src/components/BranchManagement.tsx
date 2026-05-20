@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,10 +49,20 @@ export default function BranchManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [newBranch, setNewBranch] = useState({ name: "", code: "" });
-
   const { data: branches, isLoading: branchesLoading } = useQuery<Branch[]>({
     queryKey: ["/api/branches"],
   });
+
+  // Auto-generate branch code when dialog opens
+  useEffect(() => {
+    if (isAddDialogOpen && branches && !newBranch.code) {
+      const nextNum = branches.length + 1;
+      setNewBranch((prev) => ({
+        ...prev,
+        code: `BR${nextNum.toString().padStart(3, '0')}`,
+      }));
+    }
+  }, [isAddDialogOpen, branches, newBranch.code]);
 
   const { data: employees } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
@@ -168,13 +178,13 @@ export default function BranchManagement() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="branch-code">كود الفرع</Label>
+                <Label htmlFor="branch-code">كود الفرع (تلقائي)</Label>
                 <Input
                   id="branch-code"
                   data-testid="input-branch-code"
                   value={newBranch.code}
-                  onChange={(e) => setNewBranch({ ...newBranch, code: e.target.value })}
-                  placeholder="مثال: CAI"
+                  readOnly
+                  className="bg-muted"
                 />
               </div>
             </div>
@@ -267,13 +277,12 @@ export default function BranchManagement() {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="edit-branch-code">كود الفرع</Label>
+                            <Label htmlFor="edit-branch-code">كود الفرع (تلقائي)</Label>
                             <Input
                               id="edit-branch-code"
                               value={editingBranch?.code || ""}
-                              onChange={(e) =>
-                                setEditingBranch(editingBranch ? { ...editingBranch, code: e.target.value } : null)
-                              }
+                              readOnly
+                              className="bg-muted"
                             />
                           </div>
                         </div>
