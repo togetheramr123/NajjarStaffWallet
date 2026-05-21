@@ -9,23 +9,32 @@ export default function BottomNav({ notificationCount = 0 }: { notificationCount
 
   if (!user) return null;
 
-  const isManager = user.role === 'manager' || user.role === 'branch_manager';
+  const getLinks = () => {
+    if (user.role === 'manager') {
+      return [
+        { href: "/manager", icon: LayoutDashboard, label: "الرئيسية" },
+        { href: "/employees", icon: Users, label: "الموظفين" },
+        { href: "/approvals", icon: ClipboardCheck, label: "الطلبات", badge: notificationCount },
+        { href: "/settings", icon: Settings, label: "الإعدادات" },
+      ];
+    }
+    if (user.role === 'branch_manager') {
+      return [
+        { href: "/manager", icon: LayoutDashboard, label: "الرئيسية" },
+        { href: "/employees", icon: Users, label: "الموظفين" },
+        { href: "/approvals", icon: ClipboardCheck, label: "الطلبات", badge: notificationCount },
+        { href: "/my-balance", icon: Wallet, label: "رصيدي" },
+      ];
+    }
+    return [
+      { href: "/dashboard", icon: LayoutDashboard, label: "الرئيسية" },
+      { href: "/withdraw", icon: Wallet, label: "سحب" },
+      { href: "/transactions", icon: History, label: "السجل" },
+      { href: "/profile", icon: Settings, label: "حسابي" },
+    ];
+  };
 
-  const managerLinks: Array<{ href: string; icon: any; label: string; badge?: number }> = [
-    { href: "/manager", icon: LayoutDashboard, label: "الرئيسية" },
-    { href: "/employees", icon: Users, label: "الموظفين" },
-    { href: "/approvals", icon: ClipboardCheck, label: "الطلبات", badge: notificationCount },
-    { href: "/settings", icon: Settings, label: "الإعدادات" },
-  ];
-
-  const employeeLinks: Array<{ href: string; icon: any; label: string; badge?: number }> = [
-    { href: "/dashboard", icon: LayoutDashboard, label: "الرئيسية" },
-    { href: "/withdraw", icon: Wallet, label: "سحب" },
-    { href: "/transactions", icon: History, label: "السجل" },
-    { href: "/profile", icon: Settings, label: "حسابي" },
-  ];
-
-  const links = isManager ? managerLinks : employeeLinks;
+  const links = getLinks();
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border flex justify-around items-center pb-safe pt-2 px-2 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">

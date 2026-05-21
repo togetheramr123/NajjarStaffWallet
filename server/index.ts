@@ -65,7 +65,11 @@ app.use((req, res, next) => {
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    let message = err.message || "Internal Server Error";
+
+    if (err.name === 'MulterError' && err.code === 'LIMIT_FILE_SIZE') {
+      message = "حجم الملف كبير جداً. الحد الأقصى 50 ميجابايت.";
+    }
 
     res.status(status).json({ message });
     throw err;
@@ -90,7 +94,6 @@ app.use((req, res, next) => {
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
     },
     () => {
       log(`serving on port ${port}`);

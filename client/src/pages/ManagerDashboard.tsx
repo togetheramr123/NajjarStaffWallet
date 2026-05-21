@@ -239,13 +239,15 @@ export default function ManagerDashboard() {
             <UserCircle className="h-5 w-5 text-primary" />
             <CardTitle className="text-lg">رصيدي الشخصي</CardTitle>
           </div>
-          <Button 
-            onClick={() => setAdjustBalanceOpen(true)}
-            data-testid="button-adjust-my-balance"
-          >
-            <Wallet className="h-4 w-4 ml-2" />
-            تعديل رصيدي
-          </Button>
+          {user?.role === "manager" && (
+            <Button 
+              onClick={() => setAdjustBalanceOpen(true)}
+              data-testid="button-adjust-my-balance"
+            >
+              <Wallet className="h-4 w-4 ml-2" />
+              تعديل رصيدي
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-6">

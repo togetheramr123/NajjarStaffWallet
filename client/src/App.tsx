@@ -20,6 +20,8 @@ import { AuthProvider, useAuth, type User } from "@/contexts/AuthContext";
 import BranchManagerPersonalPage from "@/pages/BranchManagerPersonalPage";
 import MessagesPage from "@/pages/MessagesPage";
 import SettingsPage from "@/pages/SettingsPage";
+import OperationsPage from "@/pages/OperationsPage";
+import ReportsPage from "@/pages/ReportsPage";
 import ForcePasswordChangeDialog from "@/components/ForcePasswordChangeDialog";
 import BottomNav from "@/components/BottomNav";
 
@@ -34,8 +36,8 @@ function Router({ userRole }: { userRole: "employee" | "branch_manager" | "manag
         <Route path="/employees" component={EmployeesPage} />
         <Route path="/approvals" component={ApprovalsPage} />
         <Route path="/messages" component={MessagesPage} />
-        <Route path="/operations" component={ManagerDashboard} />
-        <Route path="/reports" component={ManagerDashboard} />
+        <Route path="/operations" component={OperationsPage} />
+        <Route path="/reports" component={ReportsPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route path="/profile" component={ProfilePage} />
         <Route component={NotFound} />
@@ -50,6 +52,9 @@ function Router({ userRole }: { userRole: "employee" | "branch_manager" | "manag
         <Route path="/manager" component={ManagerDashboard} />
         <Route path="/employees" component={EmployeesPage} />
         <Route path="/approvals" component={ApprovalsPage} />
+        <Route path="/messages" component={MessagesPage} />
+        <Route path="/operations" component={OperationsPage} />
+        <Route path="/reports" component={ReportsPage} />
         {/* Branch manager personal account pages */}
         <Route path="/my-balance" component={BranchManagerPersonalPage} />
         <Route path="/my-withdraw" component={BranchManagerPersonalPage} />

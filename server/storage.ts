@@ -40,6 +40,7 @@ export interface IStorage {
   getUsersByBranch(branchId: string): Promise<User[]>;
   updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
   updateUserBalance(id: string, amount: number): Promise<User | undefined>;
+  adjustUserBalance(userId: string, amount: number, type: 'add' | 'subtract', reason: string, processedBy: string): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
   
   getTransactions(userId: string): Promise<Transaction[]>;
@@ -160,14 +161,60 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async adjustUserBalance(userId: string, amount: number, type: 'add' | 'subtract', reason: string, processedBy: string): Promise<User | undefined> {
+    return await db.transaction(async (tx) => {
+      const adjustAmount = type === 'add' ? amount : -amount;
+      
+      // Update balance
+      const [user] = await tx.update(users)
+        .set({ balance: sql`${users.balance} + ${adjustAmount}` })
+        .where(eq(users.id, userId))
+        .returning();
+      
+      if (!user) return undefined;
+      
+      // Create transaction record
+      await tx.insert(transactions).values({
+        userId,
+        type: 'adjustment',
+        amount,
+        status: 'approved',
+        description: reason,
+        beneficiary: null,
+        attachmentPath: null,
+        processedBy,
+        processedAt: new Date(),
+        processingNotes: type === 'add' ? 'إضافة رصيد' : 'خصم رصيد',
+      });
+      
+      return user;
+    });
+  }
+
   async deleteUser(id: string): Promise<boolean> {
-    // Clear foreign key references before deleting
-    // Clear processedBy references in transactions
+    const user = await this.getUser(id);
+    if (!user) return false;
+
+    // Check if the user has any transactions or withdrawal requests
+    const [txCount] = await db.select({ count: sql<number>`count(*)` }).from(transactions).where(eq(transactions.userId, id));
+    const [reqCount] = await db.select({ count: sql<number>`count(*)` }).from(withdrawalRequests).where(eq(withdrawalRequests.userId, id));
+
+    const totalRecords = Number(txCount?.count || 0) + Number(reqCount?.count || 0);
+
+    if (totalRecords > 0) {
+      // User has financial history - do not delete, just deactivate to preserve audit logs
+      await db.update(users)
+        .set({ status: 'inactive' })
+        .where(eq(users.id, id));
+      return true;
+    }
+
+    // Otherwise, safe to hard delete since they have no financial records
+    // Clear foreign key references first
     await db.update(transactions)
       .set({ processedBy: null })
       .where(eq(transactions.processedBy, id));
     
-    // Clear processedBy and createdOnBehalfBy references in withdrawal_requests
     await db.update(withdrawalRequests)
       .set({ processedBy: null })
       .where(eq(withdrawalRequests.processedBy, id));
@@ -176,14 +223,10 @@ export class DatabaseStorage implements IStorage {
       .set({ createdOnBehalfBy: null })
       .where(eq(withdrawalRequests.createdOnBehalfBy, id));
     
-    // Delete related records that reference this user
-    await db.delete(transactions).where(eq(transactions.userId, id));
-    await db.delete(withdrawalRequests).where(eq(withdrawalRequests.userId, id));
-    await db.delete(serviceFeeLog).where(eq(serviceFeeLog.userId, id));
     await db.delete(notifications).where(eq(notifications.userId, id));
     await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, id));
+    await db.delete(serviceFeeLog).where(eq(serviceFeeLog.userId, id));
     
-    // Now delete the user
     const result = await db.delete(users).where(eq(users.id, id)).returning();
     return result.length > 0;
   }
@@ -271,36 +314,45 @@ export class DatabaseStorage implements IStorage {
   }
 
   async processWithdrawalRequest(id: string, processedBy: string, status: 'approved' | 'rejected', notes?: string, modifiedAmount?: number): Promise<WithdrawalRequest | undefined> {
-    const [request] = await db.update(withdrawalRequests)
-      .set({
-        status,
-        processedBy,
-        processedAt: new Date(),
-        processingNotes: notes,
-        modifiedAmount,
-      })
-      .where(eq(withdrawalRequests.id, id))
-      .returning();
-    
-    if (request && status === 'approved') {
-      const finalAmount = modifiedAmount || request.amount;
-      await this.updateUserBalance(request.userId, -finalAmount);
+    return await db.transaction(async (tx) => {
+      const [request] = await tx.update(withdrawalRequests)
+        .set({
+          status,
+          processedBy,
+          processedAt: new Date(),
+          processingNotes: notes,
+          modifiedAmount,
+        })
+        .where(and(eq(withdrawalRequests.id, id), eq(withdrawalRequests.status, 'pending')))
+        .returning();
       
-      await this.createTransaction({
-        userId: request.userId,
-        type: 'withdrawal',
-        amount: finalAmount,
-        beneficiary: request.beneficiary,
-        status: 'approved',
-        description: notes || 'سحب رصيد',
-        attachmentPath: request.attachmentPath,
-        processedBy,
-        processedAt: new Date(),
-        processingNotes: notes || null,
-      });
-    }
-    
-    return request;
+      if (!request) return undefined;
+      
+      if (status === 'approved') {
+        const finalAmount = modifiedAmount || request.amount;
+        
+        // Deduct balance
+        await tx.update(users)
+          .set({ balance: sql`${users.balance} - ${finalAmount}` })
+          .where(eq(users.id, request.userId));
+        
+        // Create transaction record
+        await tx.insert(transactions).values({
+          userId: request.userId,
+          type: 'withdrawal',
+          amount: finalAmount,
+          beneficiary: request.beneficiary,
+          status: 'approved',
+          description: notes || 'سحب رصيد',
+          attachmentPath: request.attachmentPath,
+          processedBy,
+          processedAt: new Date(),
+          processingNotes: notes || null,
+        });
+      }
+      
+      return request;
+    });
   }
 
   async updateWithdrawalRequest(id: string, data: Partial<WithdrawalRequest>): Promise<WithdrawalRequest | undefined> {

@@ -46,13 +46,21 @@ if (!fs.existsSync(uploadDir)) {
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "application/pdf"];
+    const allowedTypes = [
+      "image/jpeg", 
+      "image/png", 
+      "image/gif", 
+      "image/webp",
+      "image/heic",
+      "image/heif",
+      "application/pdf"
+    ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("نوع الملف غير مدعوم"));
+      cb(new Error("نوع الملف غير مدعوم. يرجى رفع صورة أو ملف PDF."));
     }
   },
 });
@@ -152,8 +160,8 @@ export async function registerRoutes(
         return res.status(401).json({ message: info?.message || "فشل تسجيل الدخول" });
       }
       
-      // Check if password matches 123456 to enforce password change
-      const requiresPasswordChange = await comparePasswords("123456", user.password);
+      // Check if password matches 123456 or 1234 to enforce password change
+      const requiresPasswordChange = (await comparePasswords("123456", user.password)) || (await comparePasswords("1234", user.password));
       
       req.logIn(user, (err) => {
         if (err) {
@@ -175,7 +183,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/auth/me", requireAuth, async (req, res) => {
-    const requiresPasswordChange = await comparePasswords("123456", req.user!.password);
+    const requiresPasswordChange = (await comparePasswords("123456", req.user!.password)) || (await comparePasswords("1234", req.user!.password));
     const { password: _, ...safeUser } = req.user!;
     res.json({ user: { ...safeUser, requiresPasswordChange } });
   });
@@ -265,8 +273,15 @@ export async function registerRoutes(
         
         picturePath = `/objects/profiles/${uniqueFilename}`;
       } catch (objectStorageError) {
-        console.error("Object Storage upload failed:", objectStorageError);
-        return res.status(500).json({ message: "خطأ في رفع الصورة" });
+        console.warn("Object Storage upload failed, falling back to local storage:", objectStorageError);
+        const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(req.file.originalname)}`;
+        const localDir = path.join(uploadDir, "profiles");
+        if (!fs.existsSync(localDir)) {
+          fs.mkdirSync(localDir, { recursive: true });
+        }
+        const localPath = path.join(localDir, uniqueFilename);
+        fs.writeFileSync(localPath, req.file.buffer);
+        picturePath = `/objects/profiles/${uniqueFilename}`;
       }
 
       const updatedUser = await storage.updateUser(userId, { profilePicture: picturePath });
@@ -388,6 +403,12 @@ export async function registerRoutes(
         return res.status(500).json({ message: "فشل في حذف الموظف" });
       }
 
+      // Check if user was deactivated instead of hard-deleted to preserve history
+      const checkUser = await storage.getUser(id);
+      if (checkUser && checkUser.status === "inactive") {
+        return res.json({ message: "تم تعطيل حساب الموظف بنجاح للحفاظ على سجلاته المالية" });
+      }
+
       res.json({ message: "تم حذف الموظف بنجاح" });
     } catch (error) {
       res.status(500).json({ message: "خطأ في حذف الموظف" });
@@ -414,23 +435,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: "الرصيد غير كافٍ" });
       }
 
-      await storage.updateUserBalance(id, adjustAmount);
+      const updatedUser = await storage.adjustUserBalance(id, amount, type, reason, req.user!.id);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "الموظف غير موجود" });
+      }
 
-      await storage.createTransaction({
-        userId: id,
-        type: "adjustment",
-        amount,
-        status: "approved",
-        description: reason,
-        beneficiary: null,
-        attachmentPath: null,
-        processedBy: req.user!.id,
-        processedAt: new Date(),
-        processingNotes: type === "add" ? "إضافة رصيد" : "خصم رصيد",
-      });
-
-      const updatedUser = await storage.getUser(id);
-      const { password: _, ...safeUser } = updatedUser!;
+      const { password: _, ...safeUser } = updatedUser;
       res.json(safeUser);
     } catch (error) {
       res.status(500).json({ message: "خطأ في تعديل الرصيد" });
@@ -468,22 +478,12 @@ export async function registerRoutes(
           continue;
         }
 
-        await storage.updateUserBalance(employeeId, adjustAmount);
-
-        await storage.createTransaction({
-          userId: employeeId,
-          type: "adjustment",
-          amount,
-          status: "approved",
-          description: reason,
-          beneficiary: null,
-          attachmentPath: null,
-          processedBy: req.user!.id,
-          processedAt: new Date(),
-          processingNotes: type === "add" ? "إضافة رصيد جماعي" : "خصم رصيد جماعي",
-        });
-
-        results.success.push(employeeId);
+        const updatedUser = await storage.adjustUserBalance(employeeId, amount, type, reason, req.user!.id);
+        if (updatedUser) {
+          results.success.push(employeeId);
+        } else {
+          results.failed.push(employeeId);
+        }
       }
 
       res.json({
@@ -616,9 +616,19 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/transactions/all", requireManager, async (_req, res) => {
+  app.get("/api/transactions/all", requireBranchManagerOrAbove, async (req, res) => {
     try {
       const transactions = await storage.getAllTransactions();
+      
+      if (req.user?.role === "branch_manager" && req.user?.branchId) {
+        const branchEmployees = await storage.getUsersByBranch(req.user.branchId);
+        const employeeIds = new Set(branchEmployees.map(e => e.id));
+        employeeIds.add(req.user.id);
+        
+        const filtered = transactions.filter(t => employeeIds.has(t.userId));
+        return res.json(filtered);
+      }
+      
       res.json(transactions);
     } catch (error) {
       res.status(500).json({ message: "خطأ في جلب المعاملات" });
@@ -679,8 +689,15 @@ export async function registerRoutes(
           
           attachmentPath = `/objects/withdrawals/${uniqueFilename}`;
         } catch (objectStorageError) {
-          console.error("Object Storage upload failed:", objectStorageError);
-          return res.status(500).json({ message: "خطأ في رفع الملف" });
+          console.warn("Object Storage upload failed, falling back to local storage:", objectStorageError);
+          const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(req.file.originalname)}`;
+          const localDir = path.join(uploadDir, "withdrawals");
+          if (!fs.existsSync(localDir)) {
+            fs.mkdirSync(localDir, { recursive: true });
+          }
+          const localPath = path.join(localDir, uniqueFilename);
+          fs.writeFileSync(localPath, req.file.buffer);
+          attachmentPath = `/objects/withdrawals/${uniqueFilename}`;
         }
       }
 
@@ -1277,9 +1294,17 @@ export async function registerRoutes(
   // Serve files from Object Storage for /objects/* paths
   app.get("/objects/*", requireAuth, async (req, res) => {
     try {
+      const requestedPath = req.path.replace("/objects/", "");
+      
+      // First, try local storage fallback
+      const localFilePath = path.join(uploadDir, requestedPath);
+      if (fs.existsSync(localFilePath)) {
+        return res.sendFile(localFilePath);
+      }
+      
+      // If not found locally, try Replit Object Storage
       const objectStorage = new ObjectStorageService();
       const privateDir = objectStorage.getPrivateObjectDir();
-      const requestedPath = req.path.replace("/objects/", "");
       const fullPath = `${privateDir}/${requestedPath}`;
       
       const { bucketName, objectName } = parseObjectPath(fullPath);
