@@ -8,16 +8,20 @@ import { Upload, Send, User, Users } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 interface WithdrawalFormProps {
   maxAmount: number;
   onSubmit: (data: { amount: number; beneficiary: 'self' | 'family'; notes: string; attachment?: File }) => void;
   isLoading?: boolean;
+  branchManagers?: { id: string; name: string }[];
 }
 
-export default function WithdrawalForm({ maxAmount, onSubmit, isLoading }: WithdrawalFormProps) {
+export default function WithdrawalForm({ maxAmount, onSubmit, isLoading, branchManagers = [] }: WithdrawalFormProps) {
   const [amount, setAmount] = useState('');
   const [beneficiary, setBeneficiary] = useState<'self' | 'family'>('self');
   const [notes, setNotes] = useState('');
+  const [directedTo, setDirectedTo] = useState<string>('all');
   const [attachment, setAttachment] = useState<File | null>(null);
   const { toast } = useToast();
 
@@ -52,10 +56,18 @@ export default function WithdrawalForm({ maxAmount, onSubmit, isLoading }: Withd
       return;
     }
 
+    let finalNotes = notes;
+    if (directedTo !== 'all') {
+      const manager = branchManagers.find(m => m.id === directedTo);
+      if (manager) {
+        finalNotes = `[موجه إلى: ${manager.name}]\n${notes}`;
+      }
+    }
+
     onSubmit({
       amount: numAmount,
       beneficiary,
-      notes,
+      notes: finalNotes,
       attachment: attachment || undefined,
     });
 
@@ -139,7 +151,29 @@ export default function WithdrawalForm({ maxAmount, onSubmit, isLoading }: Withd
             </RadioGroup>
           </div>
 
-          <div className="space-y-2">
+          {branchManagers.length > 0 && (
+            <div className="space-y-3 pt-4 border-t">
+              <Label>توجيه الطلب إلى (اختياري)</Label>
+              <Select value={directedTo} onValueChange={setDirectedTo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="اختر المدير المعني بالطلب" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">إرسال لجميع المدراء</SelectItem>
+                  {branchManagers.map(manager => (
+                    <SelectItem key={manager.id} value={manager.id}>
+                      {manager.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                سيظل الطلب مرئياً لجميع المدراء، ولكن سيتم تمييزه كطلب موجه للمدير المحدد.
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-2 pt-4 border-t">
             <Label htmlFor="attachment">إرفاق المستند</Label>
             <div className="border-2 border-dashed border-muted rounded-lg p-6 text-center hover-elevate cursor-pointer transition-colors">
               <input

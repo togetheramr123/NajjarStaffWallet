@@ -101,6 +101,10 @@ export default function EmployeeDashboard() {
     refetchInterval: 15000,
   });
 
+  const { data: branchManagers } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/my-branch-managers"],
+  });
+
   const editRequestMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { amount?: number; beneficiary?: "self" | "family"; notes?: string } }) => {
       const res = await apiRequest("PATCH", `/api/withdrawal-requests/${id}`, data);
@@ -337,13 +341,12 @@ export default function EmployeeDashboard() {
         </TabsContent>
 
         <TabsContent value="withdraw" className="mt-4">
-          <div className="max-w-md">
-            <WithdrawalForm
-              maxAmount={availableBalance}
-              onSubmit={handleWithdrawal}
-              isLoading={withdrawMutation.isPending}
-            />
-          </div>
+          <WithdrawalForm 
+            maxAmount={availableBalance}
+            onSubmit={handleWithdrawal}
+            isLoading={withdrawMutation.isPending}
+            branchManagers={branchManagers || []}
+          />
         </TabsContent>
       </Tabs>
 

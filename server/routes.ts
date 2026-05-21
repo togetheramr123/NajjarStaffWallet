@@ -318,7 +318,7 @@ export async function registerRoutes(
       const employees = await storage.getAllUsers();
       let filteredEmployees = employees;
       
-      // Branch managers can only see employees from their branch
+      // Branch managers can only see regular employees from their branch (not other managers)
       if (req.user?.role === "branch_manager" && req.user?.branchId) {
         filteredEmployees = employees.filter(emp => 
           emp.branchId === req.user!.branchId && emp.role === "employee"
@@ -563,7 +563,14 @@ export async function registerRoutes(
 
     try {
       const employees = await storage.getUsersByBranch(branchId);
-      const safeEmployees = employees.map(({ password: _, ...emp }) => emp);
+      
+      let filteredEmployees = employees;
+      // Branch managers can only see regular employees from their branch (not other managers)
+      if (req.user?.role === "branch_manager") {
+        filteredEmployees = employees.filter(emp => emp.role === "employee");
+      }
+      
+      const safeEmployees = filteredEmployees.map(({ password: _, ...emp }) => emp);
       res.json(safeEmployees);
     } catch (error) {
       res.status(500).json({ message: "خطأ في جلب موظفي الفرع" });
@@ -581,7 +588,12 @@ export async function registerRoutes(
 
     try {
       const requests = await storage.getPendingWithdrawalRequestsByBranch(branchId);
-      res.json(requests);
+      let filteredRequests = requests;
+      // Hide requests from peer branch managers
+      if (req.user?.role === "branch_manager") {
+        filteredRequests = requests.filter(r => r.user.role === "employee");
+      }
+      res.json(filteredRequests);
     } catch (error) {
       res.status(500).json({ message: "خطأ في جلب طلبات الفرع" });
     }
@@ -622,8 +634,11 @@ export async function registerRoutes(
       
       if (req.user?.role === "branch_manager" && req.user?.branchId) {
         const branchEmployees = await storage.getUsersByBranch(req.user.branchId);
-        const employeeIds = new Set(branchEmployees.map(e => e.id));
-        employeeIds.add(req.user.id);
+        // Only include regular employees to avoid seeing other managers' transactions
+        const employeeIds = new Set(
+          branchEmployees.filter(e => e.role === "employee").map(e => e.id)
+        );
+        employeeIds.add(req.user.id); // Add self
         
         const filtered = transactions.filter(t => employeeIds.has(t.userId));
         return res.json(filtered);
@@ -632,6 +647,25 @@ export async function registerRoutes(
       res.json(transactions);
     } catch (error) {
       res.status(500).json({ message: "خطأ في جلب المعاملات" });
+    }
+  });
+
+  // Get managers for current user's branch (used for directing withdrawal requests)
+  app.get("/api/my-branch-managers", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user!.id);
+      if (!user || !user.branchId) {
+        return res.json([]);
+      }
+      
+      const branchUsers = await storage.getUsersByBranch(user.branchId);
+      const managers = branchUsers
+        .filter(u => u.role === "branch_manager")
+        .map(({ password: _, ...manager }) => manager);
+        
+      res.json(managers);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في جلب المدراء" });
     }
   });
 
@@ -822,10 +856,12 @@ export async function registerRoutes(
     try {
       const allRequests = await storage.getPendingWithdrawalRequests();
       
-      // Branch managers can only see pending requests from their branch employees
+      // Branch managers can only see pending requests from their branch regular employees
       let filteredRequests = allRequests;
       if (req.user?.role === "branch_manager" && req.user?.branchId) {
-        filteredRequests = allRequests.filter(r => r.user.branchId === req.user!.branchId);
+        filteredRequests = allRequests.filter(r => 
+          r.user.branchId === req.user!.branchId && r.user.role === "employee"
+        );
       }
       
       res.json(filteredRequests.map(r => ({
@@ -849,10 +885,12 @@ export async function registerRoutes(
     try {
       const allRequests = await storage.getAllWithdrawalRequestsWithUsers();
       
-      // Branch managers can only see requests from their branch employees
+      // Branch managers can only see requests from their branch regular employees
       let filteredRequests = allRequests;
       if (req.user?.role === "branch_manager" && req.user?.branchId) {
-        filteredRequests = allRequests.filter(r => r.user.branchId === req.user!.branchId);
+        filteredRequests = allRequests.filter(r => 
+          r.user.branchId === req.user!.branchId && r.user.role === "employee"
+        );
       }
       
       res.json(filteredRequests.map(r => ({
