@@ -23,7 +23,7 @@ import {
   type SystemSetting
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, or, isNull } from "drizzle-orm";
+import { eq, desc, and, sql, or, isNull, lt, inArray } from "drizzle-orm";
 import { hashPassword } from "./auth";
 
 export interface IStorage {
@@ -81,6 +81,7 @@ export interface IStorage {
   getUnreadMessagesCount(userId: string, userBranchId: string | null): Promise<number>;
   getSystemSetting(key: string): Promise<SystemSetting | undefined>;
   updateSystemSetting(key: string, value: string): Promise<SystemSetting>;
+  cleanupOldData(): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -622,6 +623,38 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return setting;
+  }
+
+  async cleanupOldData(): Promise<any> {
+    const thresholdDate = new Date();
+    thresholdDate.setMonth(thresholdDate.getMonth() - 13);
+
+    // Find message IDs older than 13 months to clear read status
+    const oldMessages = await db.select({ id: broadcastMessages.id }).from(broadcastMessages).where(lt(broadcastMessages.createdAt, thresholdDate));
+    const oldMessageIds = oldMessages.map(m => m.id);
+
+    let deletedReadStatus = 0;
+    if (oldMessageIds.length > 0) {
+      const deletedStatusResult = await db.delete(messageReadStatus).where(inArray(messageReadStatus.messageId, oldMessageIds)).returning();
+      deletedReadStatus = deletedStatusResult.length;
+    }
+
+    const deletedMessagesResult = await db.delete(broadcastMessages).where(lt(broadcastMessages.createdAt, thresholdDate)).returning();
+    const deletedTransactionsResult = await db.delete(transactions).where(lt(transactions.createdAt, thresholdDate)).returning();
+    const deletedRequestsResult = await db.delete(withdrawalRequests).where(lt(withdrawalRequests.createdAt, thresholdDate)).returning();
+    const deletedFeesResult = await db.delete(serviceFeeLog).where(lt(serviceFeeLog.processedAt, thresholdDate)).returning();
+    const deletedNotificationsResult = await db.delete(notifications).where(lt(notifications.createdAt, thresholdDate)).returning();
+    const deletedSubscriptionsResult = await db.delete(pushSubscriptions).where(lt(pushSubscriptions.createdAt, thresholdDate)).returning();
+
+    return {
+      deletedTransactions: deletedTransactionsResult.length,
+      deletedRequests: deletedRequestsResult.length,
+      deletedFees: deletedFeesResult.length,
+      deletedNotifications: deletedNotificationsResult.length,
+      deletedMessages: deletedMessagesResult.length,
+      deletedReadStatus,
+      deletedSubscriptions: deletedSubscriptionsResult.length
+    };
   }
 }
 
