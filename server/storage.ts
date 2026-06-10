@@ -35,6 +35,7 @@ export interface IStorage {
   
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmployeeNumber(employeeNumber: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   getUsersByBranch(branchId: string): Promise<User[]>;
@@ -122,6 +123,12 @@ export class DatabaseStorage implements IStorage {
     // Fallback if the user was created with a trailing space in the database
     const allUsers = await db.select().from(users);
     return allUsers.find(u => u.username.trim() === trimmedUsername);
+  }
+
+  async getUserByEmployeeNumber(employeeNumber: string): Promise<User | undefined> {
+    const trimmedNumber = employeeNumber.trim();
+    const [user] = await db.select().from(users).where(eq(users.employeeNumber, trimmedNumber));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -337,6 +344,16 @@ export class DatabaseStorage implements IStorage {
           .set({ balance: sql`${users.balance} - ${finalAmount}` })
           .where(eq(users.id, request.userId));
         
+        // Fetch creator name if created on behalf
+        let txDescription = notes || 'سحب رصيد';
+        if (request.createdOnBehalfBy) {
+          const [creator] = await tx.select().from(users).where(eq(users.id, request.createdOnBehalfBy));
+          const creatorName = creator?.name || 'الإدارة';
+          txDescription = notes 
+            ? `${notes} (تم التقديم بالنيابة بواسطة: ${creatorName})` 
+            : `سحب رصيد (تم التقديم بالنيابة بواسطة: ${creatorName})`;
+        }
+
         // Create transaction record
         await tx.insert(transactions).values({
           userId: request.userId,
@@ -344,7 +361,7 @@ export class DatabaseStorage implements IStorage {
           amount: finalAmount,
           beneficiary: request.beneficiary,
           status: 'approved',
-          description: notes || 'سحب رصيد',
+          description: txDescription,
           attachmentPath: request.attachmentPath,
           processedBy,
           processedAt: new Date(),

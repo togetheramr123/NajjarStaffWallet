@@ -30,6 +30,7 @@ export const users = pgTable("users", {
   profilePicture: text("profile_picture"),
   branchId: varchar("branch_id").references(() => branches.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  isPinSet: boolean("is_pin_set").notNull().default(false),
 });
 
 export const transactions = pgTable("transactions", {

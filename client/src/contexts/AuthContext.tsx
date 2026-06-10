@@ -14,6 +14,8 @@ export interface User {
   branchId: string | null;
   createdAt: string;
   requiresPasswordChange?: boolean;
+  requiresPinSetup?: boolean;
+  isPinSet?: boolean;
 }
 
 interface AuthContextType {

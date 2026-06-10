@@ -135,17 +135,18 @@ export default function EditEmployeeDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-password">كلمة المرور الجديدة (اختياري)</Label>
+              <Label htmlFor="edit-password">الرمز السري الجديد - PIN (اختياري)</Label>
               <div className="relative">
                 <Input
                   id="edit-password"
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => setPassword(convertArabicNumerals(e.target.value))}
-                  placeholder="اتركها فارغة لعدم التغيير"
+                  onChange={(e) => setPassword(convertArabicNumerals(e.target.value).replace(/\D/g, ""))}
+                  placeholder="الرمز السري الجديد (أرقام فقط، 5 أرقام على الأقل)"
+                  maxLength={10}
                   disabled={isLoading}
                   data-testid="input-edit-password"
-                  className="pl-10"
+                  className="pl-10 text-right"
                 />
                 <Button
                   type="button"
@@ -162,8 +163,8 @@ export default function EditEmployeeDialog({
                   )}
                 </Button>
               </div>
-              <p className="text-[10px] text-muted-foreground leading-tight">
-                * لأسباب أمنية (التشفير)، لا يمكن عرض كلمة المرور الحالية. لتغييرها، اكتب كلمة جديدة هنا، أو اترك الحقل فارغاً للاحتفاظ بالكلمة الحالية.
+              <p className="text-[10px] text-muted-foreground leading-tight text-right">
+                * لأسباب أمنية، لا يمكن عرض الرمز السري الحالي. لتغييره، اكتب رمزاً جديداً هنا (أرقام فقط)، أو اتركه فارغاً للاحتفاظ بالرمز السري الحالي.
               </p>
             </div>
             <div className="space-y-2">

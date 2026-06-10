@@ -35,6 +35,7 @@ declare global {
       branchId: string | null;
       createdAt: Date;
       password: string;
+      isPinSet: boolean;
     }
   }
 }
@@ -93,18 +94,46 @@ export async function registerRoutes(
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        const user = await storage.getUserByUsername(username);
-        if (!user) {
-          return done(null, false, { message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
+        const trimmedInput = username.trim();
+        // First try PIN login: search by employee number
+        let user = await storage.getUserByEmployeeNumber(trimmedInput);
+        if (user) {
+          // If user exists but isPinSet is false, PIN login is not configured yet
+          if (!user.isPinSet) {
+            return done(null, false, { 
+              message: "لم يتم تفعيل رمز الدخول الرقمي بعد لحسابك. يرجى الدخول بالطريقة القديمة (اسم المستخدم وكلمة المرور) أولاً لتفعيل الرمز." 
+            });
+          }
+          if (user.status === "inactive") {
+            return done(null, false, { message: "الحساب معطل" });
+          }
+          const isValid = await comparePasswords(password, user.password);
+          if (!isValid) {
+            return done(null, false, { message: "رقم الموظف أو الرمز السري غير صحيح" });
+          }
+          return done(null, user);
         }
-        if (user.status === "inactive") {
-          return done(null, false, { message: "الحساب معطل" });
+
+        // Second try Old login: search by username
+        user = await storage.getUserByUsername(trimmedInput);
+        if (user) {
+          // If PIN login is enabled, they must use PIN login (employee number)
+          if (user.isPinSet) {
+            return done(null, false, { 
+              message: "تم تفعيل نظام الدخول بالرمز السري لحسابك. يرجى الدخول باستخدام رقم الموظف والرمز السري." 
+            });
+          }
+          if (user.status === "inactive") {
+            return done(null, false, { message: "الحساب معطل" });
+          }
+          const isValid = await comparePasswords(password, user.password);
+          if (!isValid) {
+            return done(null, false, { message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
+          }
+          return done(null, user);
         }
-        const isValid = await comparePasswords(password, user.password);
-        if (!isValid) {
-          return done(null, false, { message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
-        }
-        return done(null, user);
+
+        return done(null, false, { message: "الحساب غير موجود في النظام" });
       } catch (err) {
         return done(err);
       }
@@ -162,15 +191,46 @@ export async function registerRoutes(
       
       // Check if password matches 123456 or 1234 to enforce password change
       const requiresPasswordChange = (await comparePasswords("123456", user.password)) || (await comparePasswords("1234", user.password));
+      const requiresPinSetup = !user.isPinSet;
       
       req.logIn(user, (err) => {
         if (err) {
           return next(err);
         }
         const { password: _, ...safeUser } = user;
-        return res.json({ user: { ...safeUser, requiresPasswordChange } });
+        return res.json({ user: { ...safeUser, requiresPasswordChange, requiresPinSetup } });
       });
     })(req, res, next);
+  });
+
+  const setupPinSchema = z.object({
+    pin: z.string().regex(/^\d{5,}$/, "الرمز السري يجب أن يتكون من أرقام فقط ولا يقل عن 5 أرقام"),
+  });
+
+  app.post("/api/auth/setup-pin", requireAuth, async (req, res) => {
+    const parsed = setupPinSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.errors[0]?.message || "بيانات غير صالحة" });
+    }
+
+    try {
+      const { pin } = parsed.data;
+      const userId = req.user!.id;
+
+      const updatedUser = await storage.updateUser(userId, { 
+        password: pin, 
+        isPinSet: true 
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: "المستخدم غير موجود" });
+      }
+
+      const { password: _, ...safeUser } = updatedUser;
+      res.json({ user: safeUser, message: "تم تفعيل الرمز السري بنجاح" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في تفعيل الرمز السري" });
+    }
   });
 
   app.post("/api/auth/logout", (req, res) => {
@@ -184,8 +244,9 @@ export async function registerRoutes(
 
   app.get("/api/auth/me", requireAuth, async (req, res) => {
     const requiresPasswordChange = (await comparePasswords("123456", req.user!.password)) || (await comparePasswords("1234", req.user!.password));
+    const requiresPinSetup = !req.user!.isPinSet;
     const { password: _, ...safeUser } = req.user!;
-    res.json({ user: { ...safeUser, requiresPasswordChange } });
+    res.json({ user: { ...safeUser, requiresPasswordChange, requiresPinSetup } });
   });
 
   // Employee profile update (name and password)
@@ -353,6 +414,7 @@ export async function registerRoutes(
         status: "active",
         balance: parsed.data.initialBalance,
         branchId: parsed.data.branchId || null,
+        isPinSet: true, // New employees have pin set to true by default for default pin "123456"
       });
 
       const { password: _, ...safeUser } = user;
@@ -367,7 +429,16 @@ export async function registerRoutes(
     const { name, username, employeeNumber, role, status, password, branchId } = req.body;
 
     try {
-      const user = await storage.updateUser(id, { name, username, employeeNumber, role, status, password, branchId });
+      const updateData: any = { name, username, employeeNumber, role, status, branchId };
+      if (password) {
+        if (!/^\d{5,}$/.test(password)) {
+          return res.status(400).json({ message: "الرمز السري يجب أن يتكون من أرقام فقط ولا يقل عن 5 أرقام" });
+        }
+        updateData.password = password;
+        updateData.isPinSet = true;
+      }
+
+      const user = await storage.updateUser(id, updateData);
       if (!user) {
         return res.status(404).json({ message: "الموظف غير موجود" });
       }

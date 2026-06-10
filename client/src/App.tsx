@@ -23,6 +23,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import OperationsPage from "@/pages/OperationsPage";
 import ReportsPage from "@/pages/ReportsPage";
 import ForcePasswordChangeDialog from "@/components/ForcePasswordChangeDialog";
+import ForcePinSetupDialog from "@/components/ForcePinSetupDialog";
 import BottomNav from "@/components/BottomNav";
 
 export { useAuth };
@@ -83,6 +84,9 @@ function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => v
   const [pendingCount, setPendingCount] = useState(0);
   const [showPasswordChangeDialog, setShowPasswordChangeDialog] = useState(
     !!user.requiresPasswordChange
+  );
+  const [showPinSetupDialog, setShowPinSetupDialog] = useState(
+    !!user.requiresPinSetup
   );
 
   const { data: pendingData } = useQuery({
@@ -163,6 +167,10 @@ function AuthenticatedLayout({ user, onLogout }: { user: User; onLogout: () => v
       <ForcePasswordChangeDialog 
         open={showPasswordChangeDialog} 
         onOpenChange={setShowPasswordChangeDialog} 
+      />
+      <ForcePinSetupDialog 
+        open={showPinSetupDialog} 
+        onOpenChange={setShowPinSetupDialog} 
       />
     </SidebarProvider>
   );

@@ -8,12 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, Loader2, Building2, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Loader2, Building2, Eye, EyeOff, KeyRound, UserCheck } from "lucide-react";
 import { useLocation } from "wouter";
 
 const loginSchema = z.object({
-  username: z.string().min(1, "اسم المستخدم مطلوب"),
-  password: z.string().min(1, "كلمة المرور مطلوبة"),
+  username: z.string().min(1, "هذا الحقل مطلوب"),
+  password: z.string().min(1, "هذا الحقل مطلوب"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -28,6 +28,7 @@ export default function LoginPage({ onBack }: LoginPageProps) {
   const [, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [loginMode, setLoginMode] = useState<'passcode' | 'old'>('passcode');
 
   const convertArabicNumerals = (str: string) => {
     const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
@@ -42,21 +43,66 @@ export default function LoginPage({ onBack }: LoginPageProps) {
     },
   });
 
+  const toggleMode = () => {
+    setLoginMode(prev => prev === 'passcode' ? 'old' : 'passcode');
+    form.reset({ username: "", password: "" });
+  };
+
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
+    
+    const cleanUsername = convertArabicNumerals(data.username).trim();
+    const cleanPassword = convertArabicNumerals(data.password).trim();
+
+    // Custom validations for passcode mode
+    if (loginMode === 'passcode') {
+      if (!/^\d+$/.test(cleanUsername)) {
+        form.setError("username", { message: "رقم الموظف يجب أن يتكون من أرقام فقط" });
+        setIsLoading(false);
+        return;
+      }
+      if (!/^\d{5,}$/.test(cleanPassword)) {
+        form.setError("password", { message: "الرمز السري يجب أن يتكون من أرقام فقط ولا يقل عن 5 أرقام" });
+        setIsLoading(false);
+        return;
+      }
+    }
+
     try {
-      const result = await login(data.username, data.password);
+      const result = await login(cleanUsername, cleanPassword);
       toast({
         title: "تم تسجيل الدخول",
         description: `مرحباً ${result.user.name}`,
       });
+      
       // Force page reload to ensure auth state is refreshed
       window.location.href = result.user.role === "manager" ? "/manager" : "/dashboard";
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "خطأ في تسجيل الدخول";
+      
+      let errorDescription = "فشل في تسجيل الدخول";
+      if (message.includes("401")) {
+        errorDescription = loginMode === 'passcode' 
+          ? "رقم الموظف أو الرمز السري غير صحيح" 
+          : "اسم المستخدم أو كلمة المرور غير صحيحة";
+      } else {
+        // Look for custom server messages
+        try {
+          const jsonStart = message.indexOf("{");
+          if (jsonStart !== -1) {
+            const parsed = JSON.parse(message.slice(jsonStart));
+            errorDescription = parsed.message || errorDescription;
+          } else {
+            errorDescription = message;
+          }
+        } catch {
+          errorDescription = message;
+        }
+      }
+
       toast({
-        title: "خطأ",
-        description: message.includes("401") ? "اسم المستخدم أو كلمة المرور غير صحيحة" : message,
+        title: "خطأ في تسجيل الدخول",
+        description: errorDescription,
         variant: "destructive",
       });
       setIsLoading(false);
@@ -79,10 +125,26 @@ export default function LoginPage({ onBack }: LoginPageProps) {
           <h1 className="text-2xl font-bold">نظام إدارة رصيد الموظفين</h1>
         </div>
 
-        <Card>
+        <Card className="border-t-4 border-primary">
           <CardHeader className="text-center">
-            <CardTitle>تسجيل الدخول</CardTitle>
-            <CardDescription>أدخل بياناتك للمتابعة</CardDescription>
+            <CardTitle className="flex items-center justify-center gap-2">
+              {loginMode === 'passcode' ? (
+                <>
+                  <KeyRound className="h-5 w-5 text-primary" />
+                  تسجيل الدخول بالرمز السري (PIN)
+                </>
+              ) : (
+                <>
+                  <UserCheck className="h-5 w-5 text-primary" />
+                  تسجيل الدخول بالنظام القديم
+                </>
+              )}
+            </CardTitle>
+            <CardDescription>
+              {loginMode === 'passcode' 
+                ? "أدخل رقم الموظف والرمز السري الرقمي للمتابعة" 
+                : "أدخل اسم المستخدم القديم وكلمة المرور للمتابعة"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -92,13 +154,20 @@ export default function LoginPage({ onBack }: LoginPageProps) {
                   name="username"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>اسم المستخدم</FormLabel>
+                      <FormLabel>
+                        {loginMode === 'passcode' ? "رقم الموظف" : "اسم المستخدم"}
+                      </FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="أدخل اسم المستخدم"
+                          placeholder={loginMode === 'passcode' ? "مثال: 1024" : "أدخل اسم المستخدم"}
                           {...field}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            field.onChange(loginMode === 'passcode' ? convertArabicNumerals(val).replace(/\D/g, "") : val);
+                          }}
                           disabled={isLoading}
                           data-testid="input-username"
+                          className="text-right"
                         />
                       </FormControl>
                       <FormMessage />
@@ -110,17 +179,23 @@ export default function LoginPage({ onBack }: LoginPageProps) {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>كلمة المرور</FormLabel>
+                      <FormLabel>
+                        {loginMode === 'passcode' ? "الرمز السري الرقمي" : "كلمة المرور"}
+                      </FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             type={showPassword ? "text" : "password"}
-                            placeholder="أدخل كلمة المرور"
+                            placeholder={loginMode === 'passcode' ? "أدخل الرمز السري (أرقام فقط)" : "أدخل كلمة المرور"}
                             {...field}
-                            onChange={(e) => field.onChange(convertArabicNumerals(e.target.value))}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              field.onChange(loginMode === 'passcode' ? convertArabicNumerals(val).replace(/\D/g, "") : convertArabicNumerals(val));
+                            }}
+                            maxLength={loginMode === 'passcode' ? 10 : undefined}
                             disabled={isLoading}
                             data-testid="input-password"
-                            className="pl-10"
+                            className="pl-10 text-right"
                           />
                           <Button
                             type="button"
@@ -153,6 +228,19 @@ export default function LoginPage({ onBack }: LoginPageProps) {
                       "تسجيل الدخول"
                     )}
                   </Button>
+
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    onClick={toggleMode} 
+                    disabled={isLoading}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {loginMode === 'passcode' 
+                      ? "الدخول بالنظام القديم (اسم المستخدم وكلمة المرور)" 
+                      : "الدخول بالرمز السري الرقمي (رقم الموظف)"}
+                  </Button>
+
                   <Button type="button" variant="outline" onClick={onBack} disabled={isLoading} data-testid="button-back">
                     <ArrowRight className="h-4 w-4 ml-2" />
                     العودة
@@ -165,7 +253,9 @@ export default function LoginPage({ onBack }: LoginPageProps) {
 
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
-            للحصول على حساب، يرجى التواصل مع المدير المسؤول
+            {loginMode === 'passcode' 
+              ? "إذا نسيت الرمز السري الخاص بك، يرجى مراجعة المدير المسؤول لتعديله"
+              : "الدخول القديم متاح لمرة واحدة فقط لتفعيل نظام الأرقام الجديد"}
           </p>
         </div>
       </div>

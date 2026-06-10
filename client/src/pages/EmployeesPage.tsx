@@ -411,6 +411,13 @@ export default function EmployeesPage() {
                     }}
                     onToggleStatus={handleToggleStatus}
                     onDelete={handleDeleteEmployee}
+                    onWithdrawalOnBehalf={(id) => {
+                      const emp = employees?.find((e) => e.id === id);
+                      if (emp) {
+                        setSelectedEmployee(emp);
+                        setWithdrawalOnBehalfDialogOpen(true);
+                      }
+                    }}
                   />
                 ))}
               </div>

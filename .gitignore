@@ -6,3 +6,4 @@ vite.config.ts.*
 *.tar.gz.config/
 .local/
 .config/
+wallet_db_backup.json
