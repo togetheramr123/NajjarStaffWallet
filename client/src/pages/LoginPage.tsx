@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, Loader2, Building2, Eye, EyeOff, KeyRound, UserCheck } from "lucide-react";
-import { useLocation } from "wouter";
+import { ArrowRight, Loader2, Building2, KeyRound, Delete } from "lucide-react";
+import ForcePinSetupDialog from "@/components/ForcePinSetupDialog";
 
 const loginSchema = z.object({
   username: z.string().min(1, "هذا الحقل مطلوب"),
@@ -25,10 +25,9 @@ interface LoginPageProps {
 export default function LoginPage({ onBack }: LoginPageProps) {
   const { login } = useAuth();
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [loginMode, setLoginMode] = useState<'passcode' | 'old'>('passcode');
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const [loginResult, setLoginResult] = useState<any>(null);
 
   const convertArabicNumerals = (str: string) => {
     const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
@@ -43,29 +42,33 @@ export default function LoginPage({ onBack }: LoginPageProps) {
     },
   });
 
-  const toggleMode = () => {
-    setLoginMode(prev => prev === 'passcode' ? 'old' : 'passcode');
-    form.reset({ username: "", password: "" });
+  const handlePadClick = (num: string) => {
+    const currentPass = form.getValues("password");
+    if (currentPass.length < 10) {
+      form.setValue("password", currentPass + num, { shouldValidate: true });
+    }
+  };
+
+  const handleDelete = () => {
+    const currentPass = form.getValues("password");
+    form.setValue("password", currentPass.slice(0, -1), { shouldValidate: true });
   };
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     
-    const cleanUsername = convertArabicNumerals(data.username).trim();
-    const cleanPassword = convertArabicNumerals(data.password).trim();
+    const cleanUsername = convertArabicNumerals(data.username).replace(/\D/g, "").trim();
+    const cleanPassword = convertArabicNumerals(data.password).replace(/\D/g, "").trim();
 
-    // Custom validations for passcode mode
-    if (loginMode === 'passcode') {
-      if (!/^\d+$/.test(cleanUsername)) {
-        form.setError("username", { message: "رقم الموظف يجب أن يتكون من أرقام فقط" });
-        setIsLoading(false);
-        return;
-      }
-      if (!/^\d{5,}$/.test(cleanPassword)) {
-        form.setError("password", { message: "الرمز السري يجب أن يتكون من أرقام فقط ولا يقل عن 5 أرقام" });
-        setIsLoading(false);
-        return;
-      }
+    if (!cleanUsername) {
+      form.setError("username", { message: "رقم الموظف يجب أن يتكون من أرقام فقط" });
+      setIsLoading(false);
+      return;
+    }
+    if (cleanPassword.length < 5) {
+      form.setError("password", { message: "الرمز السري يجب أن لا يقل عن 5 أرقام" });
+      setIsLoading(false);
+      return;
     }
 
     try {
@@ -75,18 +78,20 @@ export default function LoginPage({ onBack }: LoginPageProps) {
         description: `مرحباً ${result.user.name}`,
       });
       
-      // Force page reload to ensure auth state is refreshed
-      window.location.href = result.user.role === "manager" ? "/manager" : "/dashboard";
+      if (result.user.requiresPinSetup) {
+        setLoginResult(result);
+        setShowPinSetup(true);
+        setIsLoading(false);
+      } else {
+        window.location.href = result.user.role === "manager" ? "/manager" : "/dashboard";
+      }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "خطأ في تسجيل الدخول";
       
       let errorDescription = "فشل في تسجيل الدخول";
       if (message.includes("401")) {
-        errorDescription = loginMode === 'passcode' 
-          ? "رقم الموظف أو الرمز السري غير صحيح" 
-          : "اسم المستخدم أو كلمة المرور غير صحيحة";
+        errorDescription = "رقم الموظف أو الرمز السري غير صحيح";
       } else {
-        // Look for custom server messages
         try {
           const jsonStart = message.indexOf("{");
           if (jsonStart !== -1) {
@@ -106,12 +111,17 @@ export default function LoginPage({ onBack }: LoginPageProps) {
         variant: "destructive",
       });
       setIsLoading(false);
+      form.setValue("password", ""); // Clear password on error
     }
+  };
+
+  const handlePinSetupComplete = () => {
+    setShowPinSetup(false);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/50 flex items-center justify-center p-4" dir="rtl">
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center gap-3">
             <div className="h-16 w-16 rounded-md bg-primary flex items-center justify-center">
@@ -125,123 +135,114 @@ export default function LoginPage({ onBack }: LoginPageProps) {
           <h1 className="text-2xl font-bold">نظام إدارة رصيد الموظفين</h1>
         </div>
 
-        <Card className="border-t-4 border-primary">
-          <CardHeader className="text-center">
+        <Card className="border-t-4 border-primary shadow-lg">
+          <CardHeader className="text-center pb-4">
             <CardTitle className="flex items-center justify-center gap-2">
-              {loginMode === 'passcode' ? (
-                <>
-                  <KeyRound className="h-5 w-5 text-primary" />
-                  تسجيل الدخول بالرمز السري (PIN)
-                </>
-              ) : (
-                <>
-                  <UserCheck className="h-5 w-5 text-primary" />
-                  تسجيل الدخول بالنظام القديم
-                </>
-              )}
+              <KeyRound className="h-5 w-5 text-primary" />
+              تسجيل الدخول
             </CardTitle>
             <CardDescription>
-              {loginMode === 'passcode' 
-                ? "أدخل رقم الموظف والرمز السري الرقمي للمتابعة" 
-                : "أدخل اسم المستخدم القديم وكلمة المرور للمتابعة"}
+              أدخل رقم الموظف والرمز السري للمتابعة
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
                   control={form.control}
                   name="username"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>
-                        {loginMode === 'passcode' ? "رقم الموظف" : "اسم المستخدم"}
-                      </FormLabel>
+                      <FormLabel className="text-center block text-muted-foreground">رقم الموظف</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={loginMode === 'passcode' ? "مثال: 1024" : "أدخل اسم المستخدم"}
+                          placeholder="مثال: 19939"
                           {...field}
                           onChange={(e) => {
                             const val = e.target.value;
-                            field.onChange(loginMode === 'passcode' ? convertArabicNumerals(val).replace(/\D/g, "") : val);
+                            field.onChange(convertArabicNumerals(val).replace(/\D/g, ""));
                           }}
                           disabled={isLoading}
-                          data-testid="input-username"
-                          className="text-right"
+                          className="text-center text-xl tracking-wider h-12 bg-muted/50 font-bold"
+                          inputMode="numeric"
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-center" />
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="password"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {loginMode === 'passcode' ? "الرمز السري الرقمي" : "كلمة المرور"}
-                      </FormLabel>
+                    <FormItem className="space-y-4">
+                      <FormLabel className="text-center block text-muted-foreground">الرمز السري</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Input
-                            type={showPassword ? "text" : "password"}
-                            placeholder={loginMode === 'passcode' ? "أدخل الرمز السري (أرقام فقط)" : "أدخل كلمة المرور"}
-                            {...field}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              field.onChange(loginMode === 'passcode' ? convertArabicNumerals(val).replace(/\D/g, "") : convertArabicNumerals(val));
-                            }}
-                            maxLength={loginMode === 'passcode' ? 10 : undefined}
-                            disabled={isLoading}
-                            data-testid="input-password"
-                            className="pl-10 text-right"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute left-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => setShowPassword(!showPassword)}
-                            disabled={isLoading}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </Button>
+                        <div className="flex justify-center gap-3 h-10 items-center">
+                          {Array.from({ length: Math.max(5, field.value.length) }).map((_, i) => (
+                            <div 
+                              key={i} 
+                              className={`w-4 h-4 rounded-full transition-all duration-200 ${
+                                i < field.value.length ? 'bg-primary scale-110' : 'bg-muted border border-border'
+                              }`}
+                            />
+                          ))}
                         </div>
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-center" />
+
+                      {/* iPhone style Pin Pad */}
+                      <div className="grid grid-cols-3 gap-3 pt-4 px-2" dir="ltr">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                          <Button
+                            key={num}
+                            type="button"
+                            variant="outline"
+                            className="h-14 text-2xl rounded-full font-semibold hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
+                            onClick={() => handlePadClick(num.toString())}
+                            disabled={isLoading}
+                          >
+                            {num}
+                          </Button>
+                        ))}
+                        <div />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-14 text-2xl rounded-full font-semibold hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
+                          onClick={() => handlePadClick("0")}
+                          disabled={isLoading}
+                        >
+                          0
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="h-14 rounded-full text-muted-foreground hover:text-destructive transition-colors"
+                          onClick={handleDelete}
+                          disabled={isLoading || field.value.length === 0}
+                        >
+                          <Delete className="h-6 w-6" />
+                        </Button>
+                      </div>
                     </FormItem>
                   )}
                 />
-                <div className="flex flex-col gap-3 pt-2">
-                  <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-login">
+
+                <div className="flex flex-col gap-3 pt-4">
+                  <Button type="submit" className="w-full h-12 text-lg rounded-xl shadow-md" disabled={isLoading}>
                     {isLoading ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                        <Loader2 className="h-5 w-5 animate-spin ml-2" />
                         جاري تسجيل الدخول...
                       </>
                     ) : (
-                      "تسجيل الدخول"
+                      "دخول"
                     )}
                   </Button>
 
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    onClick={toggleMode} 
-                    disabled={isLoading}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {loginMode === 'passcode' 
-                      ? "الدخول بالنظام القديم (اسم المستخدم وكلمة المرور)" 
-                      : "الدخول بالرمز السري الرقمي (رقم الموظف)"}
-                  </Button>
-
-                  <Button type="button" variant="outline" onClick={onBack} disabled={isLoading} data-testid="button-back">
+                  <Button type="button" variant="ghost" onClick={onBack} disabled={isLoading} className="text-muted-foreground">
                     <ArrowRight className="h-4 w-4 ml-2" />
                     العودة
                   </Button>
@@ -253,12 +254,17 @@ export default function LoginPage({ onBack }: LoginPageProps) {
 
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
-            {loginMode === 'passcode' 
-              ? "إذا نسيت الرمز السري الخاص بك، يرجى مراجعة المدير المسؤول لتعديله"
-              : "الدخول القديم متاح لمرة واحدة فقط لتفعيل نظام الأرقام الجديد"}
+            إذا نسيت الرمز السري الخاص بك، يرجى مراجعة المدير المسؤول لتعديله
           </p>
         </div>
       </div>
+
+      <ForcePinSetupDialog 
+        open={showPinSetup} 
+        onOpenChange={(open) => {
+          if (!open) handlePinSetupComplete();
+        }} 
+      />
     </div>
   );
 }

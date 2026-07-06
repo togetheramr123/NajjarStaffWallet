@@ -15,48 +15,24 @@ import { Loader2, User, Lock, Save, Camera, Trash2 } from "lucide-react";
 
 const profileSchema = z.object({
   name: z.string().min(2, "الاسم يجب أن يكون حرفين على الأقل").optional().or(z.literal("")),
-  currentPassword: z.string().optional().or(z.literal("")),
-  newPassword: z.string().optional().or(z.literal("")),
-  confirmPassword: z.string().optional().or(z.literal("")),
-}).refine((data) => {
-  if (data.newPassword && !data.currentPassword) {
-    return false;
-  }
-  return true;
-}, { message: "يجب إدخال كلمة المرور الحالية لتغيير كلمة المرور", path: ["currentPassword"] })
-.refine((data) => {
-  if (data.newPassword && data.newPassword.length < 4) {
-    return false;
-  }
-  return true;
-}, { message: "كلمة المرور الجديدة يجب أن تكون 4 أحرف على الأقل", path: ["newPassword"] })
-.refine((data) => {
-  if (data.newPassword && data.newPassword !== data.confirmPassword) {
-    return false;
-  }
-  return true;
-}, { message: "كلمات المرور غير متطابقة", path: ["confirmPassword"] });
+});
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function ProfileEditForm() {
   const { user, refreshUser } = useAuth();
   const { toast } = useToast();
-  const [showPasswordFields, setShowPasswordFields] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       name: user?.name || "",
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
     },
   });
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: { name?: string; currentPassword?: string; newPassword?: string }) => {
+    mutationFn: async (data: { name?: string }) => {
       const response = await apiRequest("PATCH", "/api/profile", data);
       return response.json();
     },
@@ -69,11 +45,7 @@ export default function ProfileEditForm() {
       refreshUser();
       form.reset({
         name: data.user?.name || user?.name || "",
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
       });
-      setShowPasswordFields(false);
     },
     onError: (error: Error) => {
       toast({
@@ -142,15 +114,10 @@ export default function ProfileEditForm() {
   });
 
   const onSubmit = (data: ProfileFormData) => {
-    const updateData: { name?: string; currentPassword?: string; newPassword?: string } = {};
+    const updateData: { name?: string } = {};
     
     if (data.name && data.name !== user?.name) {
       updateData.name = data.name;
-    }
-    
-    if (data.newPassword && data.currentPassword) {
-      updateData.currentPassword = data.currentPassword;
-      updateData.newPassword = data.newPassword;
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -312,80 +279,6 @@ export default function ProfileEditForm() {
                   </FormItem>
                 )}
               />
-
-              <div className="border-t pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowPasswordFields(!showPasswordFields)}
-                  className="mb-4"
-                  data-testid="button-toggle-password"
-                >
-                  <Lock className="h-4 w-4 ml-2" />
-                  {showPasswordFields ? "إخفاء تغيير كلمة المرور" : "تغيير كلمة المرور"}
-                </Button>
-
-                {showPasswordFields && (
-                  <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="currentPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>كلمة المرور الحالية</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="password" 
-                              placeholder="أدخل كلمة المرور الحالية" 
-                              {...field} 
-                              data-testid="input-current-password"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="newPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>كلمة المرور الجديدة</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="password" 
-                              placeholder="أدخل كلمة المرور الجديدة" 
-                              {...field} 
-                              data-testid="input-new-password"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="confirmPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>تأكيد كلمة المرور الجديدة</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="password" 
-                              placeholder="أعد إدخال كلمة المرور الجديدة" 
-                              {...field} 
-                              data-testid="input-confirm-password"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
-              </div>
 
               <Button 
                 type="submit" 

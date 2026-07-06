@@ -95,15 +95,8 @@ export async function registerRoutes(
     new LocalStrategy(async (username, password, done) => {
       try {
         const trimmedInput = username.trim();
-        // First try PIN login: search by employee number
         let user = await storage.getUserByEmployeeNumber(trimmedInput);
         if (user) {
-          // If user exists but isPinSet is false, PIN login is not configured yet
-          if (!user.isPinSet) {
-            return done(null, false, { 
-              message: "لم يتم تفعيل رمز الدخول الرقمي بعد لحسابك. يرجى الدخول بالطريقة القديمة (اسم المستخدم وكلمة المرور) أولاً لتفعيل الرمز." 
-            });
-          }
           if (user.status === "inactive") {
             return done(null, false, { message: "الحساب معطل" });
           }
@@ -114,26 +107,7 @@ export async function registerRoutes(
           return done(null, user);
         }
 
-        // Second try Old login: search by username
-        user = await storage.getUserByUsername(trimmedInput);
-        if (user) {
-          // If PIN login is enabled, they must use PIN login (employee number)
-          if (user.isPinSet) {
-            return done(null, false, { 
-              message: "تم تفعيل نظام الدخول بالرمز السري لحسابك. يرجى الدخول باستخدام رقم الموظف والرمز السري." 
-            });
-          }
-          if (user.status === "inactive") {
-            return done(null, false, { message: "الحساب معطل" });
-          }
-          const isValid = await comparePasswords(password, user.password);
-          if (!isValid) {
-            return done(null, false, { message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
-          }
-          return done(null, user);
-        }
-
-        return done(null, false, { message: "الحساب غير موجود في النظام" });
+        return done(null, false, { message: "رقم الموظف غير موجود" });
       } catch (err) {
         return done(err);
       }
@@ -414,7 +388,7 @@ export async function registerRoutes(
         status: "active",
         balance: parsed.data.initialBalance,
         branchId: parsed.data.branchId || null,
-        isPinSet: true, // New employees have pin set to true by default for default pin "123456"
+        isPinSet: false, // New employees have pin set to false so they are forced to change it
       });
 
       const { password: _, ...safeUser } = user;
@@ -435,7 +409,7 @@ export async function registerRoutes(
           return res.status(400).json({ message: "الرمز السري يجب أن يتكون من أرقام فقط ولا يقل عن 5 أرقام" });
         }
         updateData.password = password;
-        updateData.isPinSet = true;
+        updateData.isPinSet = false;
       }
 
       const user = await storage.updateUser(id, updateData);

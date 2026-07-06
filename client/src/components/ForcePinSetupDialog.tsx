@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2, Delete } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -17,14 +15,10 @@ interface ForcePinSetupDialogProps {
 export default function ForcePinSetupDialog({ open, onOpenChange }: ForcePinSetupDialogProps) {
   const { toast } = useToast();
   const { refreshUser } = useAuth();
+  
+  const [step, setStep] = useState<'enter' | 'confirm'>('enter');
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
-  const [showPin, setShowPin] = useState(false);
-
-  const convertArabicNumerals = (str: string) => {
-    const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-    return str.replace(/[٠-٩]/g, (w) => arabicNumbers.indexOf(w).toString());
-  };
 
   const setupPinMutation = useMutation({
     mutationFn: async (pinValue: string) => {
@@ -33,13 +27,14 @@ export default function ForcePinSetupDialog({ open, onOpenChange }: ForcePinSetu
       });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "تم تفعيل الرمز السري",
         description: "تم تفعيل رمز الدخول الرقمي بنجاح، يمكنك الآن استخدامه للدخول في المرات القادمة",
       });
-      onOpenChange(false);
       refreshUser();
+      onOpenChange(false);
+      window.location.href = data.user.role === "manager" ? "/manager" : "/dashboard";
     },
     onError: (error: Error) => {
       toast({
@@ -47,34 +42,53 @@ export default function ForcePinSetupDialog({ open, onOpenChange }: ForcePinSetu
         description: error.message,
         variant: "destructive",
       });
+      setStep('enter');
+      setPin("");
+      setConfirmPin("");
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const cleanPin = convertArabicNumerals(pin).replace(/\D/g, "");
-    const cleanConfirm = convertArabicNumerals(confirmPin).replace(/\D/g, "");
-
-    if (cleanPin.length < 5) {
-      toast({
-        title: "خطأ",
-        description: "الرمز السري يجب أن يتكون من أرقام فقط ولا يقل عن 5 أرقام",
-        variant: "destructive",
-      });
-      return;
+  const handlePadClick = (num: string) => {
+    if (step === 'enter') {
+      if (pin.length < 10) setPin(prev => prev + num);
+    } else {
+      if (confirmPin.length < 10) setConfirmPin(prev => prev + num);
     }
+  };
 
-    if (cleanPin !== cleanConfirm) {
-      toast({
-        title: "خطأ",
-        description: "الرمزين السريين غير متطابقين",
-        variant: "destructive",
-      });
-      return;
+  const handleDelete = () => {
+    if (step === 'enter') {
+      setPin(prev => prev.slice(0, -1));
+    } else {
+      setConfirmPin(prev => prev.slice(0, -1));
     }
+  };
 
-    setupPinMutation.mutate(cleanPin);
+  const handleNext = () => {
+    if (step === 'enter') {
+      if (pin.length < 5) {
+        toast({
+          title: "تنبيه",
+          description: "الرمز السري يجب أن لا يقل عن 5 أرقام",
+          variant: "destructive",
+        });
+        return;
+      }
+      setStep('confirm');
+    } else {
+      if (pin !== confirmPin) {
+        toast({
+          title: "خطأ",
+          description: "الرمزين غير متطابقين، يرجى المحاولة مرة أخرى",
+          variant: "destructive",
+        });
+        setStep('enter');
+        setPin("");
+        setConfirmPin("");
+        return;
+      }
+      setupPinMutation.mutate(pin);
+    }
   };
 
   // Prevent closing the dialog by clicking outside or pressing Escape
@@ -86,79 +100,102 @@ export default function ForcePinSetupDialog({ open, onOpenChange }: ForcePinSetu
     e.preventDefault();
   };
 
+  const currentVal = step === 'enter' ? pin : confirmPin;
+
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent 
-        className="sm:max-w-[425px]" 
+        className="sm:max-w-[400px] p-6" 
         onPointerDownOutside={handlePointerDownOutside}
         onEscapeKeyDown={handleEscapeKeyDown}
       >
-        <DialogHeader>
-          <DialogTitle className="text-right">تفعيل رمز الدخول الرقمي (PIN)</DialogTitle>
-          <DialogDescription className="text-right mt-2 text-sm leading-relaxed">
-            لقد تم تحديث نظام الأمان لتسجيل الدخول. يرجى تعيين رمز دخول رقمي جديد (مكون من أرقام فقط، لا يقل عن 5 أرقام) للوصول إلى حسابك وحماية رصيدك.
+        <DialogHeader className="space-y-4">
+          <DialogTitle className="text-center text-xl">
+            {step === 'enter' ? 'تعيين الرمز السري الجديد' : 'تأكيد الرمز السري'}
+          </DialogTitle>
+          <DialogDescription className="text-center text-sm leading-relaxed">
+            {step === 'enter' 
+              ? 'يرجى إدخال رمز سري جديد مكون من 5 أرقام على الأقل لحماية حسابك.'
+              : 'أعد إدخال نفس الرمز السري للتأكيد.'}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="pin-code" className="block text-right">الرمز السري الجديد (أرقام فقط)</Label>
-              <div className="relative">
-                <Input
-                  id="pin-code"
-                  type={showPin ? "text" : "password"}
-                  value={pin}
-                  onChange={(e) => setPin(convertArabicNumerals(e.target.value).replace(/\D/g, ""))}
-                  placeholder="أدخل 5 أرقام على الأقل"
-                  maxLength={10}
-                  disabled={setupPinMutation.isPending}
-                  className="pl-10 text-right"
-                  required
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute left-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPin(!showPin)}
-                  disabled={setupPinMutation.isPending}
-                >
-                  {showPin ? (
-                    <EyeOff className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirm-pin-code" className="block text-right">تأكيد الرمز السري الجديد</Label>
-              <Input
-                id="confirm-pin-code"
-                type={showPin ? "text" : "password"}
-                value={confirmPin}
-                onChange={(e) => setConfirmPin(convertArabicNumerals(e.target.value).replace(/\D/g, ""))}
-                placeholder="أعد إدخال الرمز السري"
-                maxLength={10}
-                disabled={setupPinMutation.isPending}
-                className="text-right"
-                required
+
+        <div className="space-y-8 py-4">
+          {/* Dots display */}
+          <div className="flex justify-center gap-3 h-10 items-center" dir="ltr">
+            {Array.from({ length: Math.max(5, currentVal.length) }).map((_, i) => (
+              <div 
+                key={i} 
+                className={`w-4 h-4 rounded-full transition-all duration-200 ${
+                  i < currentVal.length ? 'bg-primary scale-110' : 'bg-muted border border-border'
+                }`}
               />
-            </div>
+            ))}
           </div>
-          <DialogFooter className="pt-4 border-t flex sm:justify-start items-center w-full">
-            <Button type="submit" className="w-full" disabled={setupPinMutation.isPending}>
-              {setupPinMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                  جاري الحفظ وتفعيل الرمز السري...
-                </>
-              ) : (
-                "حفظ وتفعيل الرمز السري"
-              )}
+
+          {/* iPhone style Pin Pad */}
+          <div className="grid grid-cols-3 gap-4 px-4" dir="ltr">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+              <Button
+                key={num}
+                type="button"
+                variant="outline"
+                className="h-16 text-2xl rounded-full font-semibold hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
+                onClick={() => handlePadClick(num.toString())}
+                disabled={setupPinMutation.isPending}
+              >
+                {num}
+              </Button>
+            ))}
+            <div />
+            <Button
+              type="button"
+              variant="outline"
+              className="h-16 text-2xl rounded-full font-semibold hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
+              onClick={() => handlePadClick("0")}
+              disabled={setupPinMutation.isPending}
+            >
+              0
             </Button>
-          </DialogFooter>
-        </form>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-16 rounded-full text-muted-foreground hover:text-destructive transition-colors"
+              onClick={handleDelete}
+              disabled={setupPinMutation.isPending || currentVal.length === 0}
+            >
+              <Delete className="h-7 w-7" />
+            </Button>
+          </div>
+
+          <Button 
+            className="w-full h-12 text-lg rounded-xl shadow-md mt-4" 
+            onClick={handleNext}
+            disabled={setupPinMutation.isPending || currentVal.length < 5}
+          >
+            {setupPinMutation.isPending ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin ml-2" />
+                جاري الحفظ...
+              </>
+            ) : (
+              step === 'enter' ? 'التالي' : 'تأكيد وحفظ'
+            )}
+          </Button>
+
+          {step === 'confirm' && !setupPinMutation.isPending && (
+            <Button 
+              variant="ghost" 
+              className="w-full text-muted-foreground mt-2"
+              onClick={() => {
+                setStep('enter');
+                setConfirmPin("");
+              }}
+            >
+              العودة وإعادة الإدخال
+            </Button>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
