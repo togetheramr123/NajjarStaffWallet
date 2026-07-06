@@ -36,7 +36,6 @@ function generateEmployeeNumber(count: number): string {
 export default function AddEmployeeDialog({ onAdd, isLoading, branches = [], employeeCount = 0 }: AddEmployeeDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('123456');
   const [employeeNumber, setEmployeeNumber] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
@@ -44,10 +43,6 @@ export default function AddEmployeeDialog({ onAdd, isLoading, branches = [], emp
   const [branchId, setBranchId] = useState<string>('');
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Automatically set username to match the name as user types
-    setUsername(name);
-  }, [name]);
 
   useEffect(() => {
     if (open && !employeeNumber) {
@@ -88,7 +83,7 @@ export default function AddEmployeeDialog({ onAdd, isLoading, branches = [], emp
     onAdd({
       name,
       employeeNumber,
-      username,
+      username: employeeNumber,
       password,
       initialBalance: parseFloat(initialBalance) || 0,
       role,
@@ -97,7 +92,6 @@ export default function AddEmployeeDialog({ onAdd, isLoading, branches = [], emp
 
     setOpen(false);
     setName('');
-    setUsername('');
     setPassword('123456');
     setEmployeeNumber('');
     setInitialBalance('');
@@ -133,17 +127,7 @@ export default function AddEmployeeDialog({ onAdd, isLoading, branches = [], emp
                 data-testid="input-employee-name"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="username">اسم المستخدم (للدخول)</Label>
-              <Input
-                id="username"
-                value={username}
-                readOnly
-                className="bg-muted"
-                disabled={isLoading}
-                data-testid="input-employee-username"
-              />
-            </div>
+
             <div className="space-y-2">
               <Label htmlFor="password">الرقم السري</Label>
               <Input
