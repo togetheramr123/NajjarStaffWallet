@@ -4,11 +4,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, Loader2, Building2, KeyRound, Delete } from "lucide-react";
+import { ArrowRight, Loader2, Building2, KeyRound, Delete, User, Lock } from "lucide-react";
 import ForcePinSetupDialog from "@/components/ForcePinSetupDialog";
 
 const loginSchema = z.object({
@@ -28,6 +27,7 @@ export default function LoginPage({ onBack }: LoginPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
   const [loginResult, setLoginResult] = useState<any>(null);
+  const [activeField, setActiveField] = useState<'username' | 'password'>('username');
 
   const convertArabicNumerals = (str: string) => {
     const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
@@ -43,15 +43,21 @@ export default function LoginPage({ onBack }: LoginPageProps) {
   });
 
   const handlePadClick = (num: string) => {
-    const currentPass = form.getValues("password");
-    if (currentPass.length < 10) {
-      form.setValue("password", currentPass + num, { shouldValidate: true });
+    const currentVal = form.getValues(activeField);
+    const maxLen = activeField === 'username' ? 15 : 10;
+    if (currentVal.length < maxLen) {
+      form.setValue(activeField, currentVal + num, { shouldValidate: true });
     }
   };
 
   const handleDelete = () => {
-    const currentPass = form.getValues("password");
-    form.setValue("password", currentPass.slice(0, -1), { shouldValidate: true });
+    const currentVal = form.getValues(activeField);
+    if (currentVal.length > 0) {
+      form.setValue(activeField, currentVal.slice(0, -1), { shouldValidate: true });
+    } else if (activeField === 'password') {
+      // If PIN is empty and user presses delete, go back to employee number
+      setActiveField('username');
+    }
   };
 
   const onSubmit = async (data: LoginFormData) => {
@@ -62,11 +68,13 @@ export default function LoginPage({ onBack }: LoginPageProps) {
 
     if (!cleanUsername) {
       form.setError("username", { message: "رقم الموظف يجب أن يتكون من أرقام فقط" });
+      setActiveField('username');
       setIsLoading(false);
       return;
     }
     if (cleanPassword.length < 5) {
       form.setError("password", { message: "الرمز السري يجب أن لا يقل عن 5 أرقام" });
+      setActiveField('password');
       setIsLoading(false);
       return;
     }
@@ -111,13 +119,17 @@ export default function LoginPage({ onBack }: LoginPageProps) {
         variant: "destructive",
       });
       setIsLoading(false);
-      form.setValue("password", ""); // Clear password on error
+      form.setValue("password", "");
+      setActiveField('username');
     }
   };
 
   const handlePinSetupComplete = () => {
     setShowPinSetup(false);
   };
+
+  const usernameVal = form.watch("username");
+  const passwordVal = form.watch("password");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/50 flex items-center justify-center p-4" dir="rtl">
@@ -142,93 +154,104 @@ export default function LoginPage({ onBack }: LoginPageProps) {
               تسجيل الدخول
             </CardTitle>
             <CardDescription>
-              أدخل رقم الموظف والرمز السري للمتابعة
+              اضغط على الحقل ثم استخدم لوحة الأرقام للإدخال
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                {/* Employee Number Field — tappable display */}
                 <FormField
                   control={form.control}
                   name="username"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
-                      <FormLabel className="text-center block text-muted-foreground">رقم الموظف</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="مثال: 19939"
-                          {...field}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            field.onChange(convertArabicNumerals(val).replace(/\D/g, ""));
-                          }}
-                          disabled={isLoading}
-                          className="text-center text-xl tracking-wider h-12 bg-muted/50 font-bold"
-                          inputMode="numeric"
-                        />
-                      </FormControl>
+                      <FormLabel className="text-center block text-muted-foreground text-xs">رقم الموظف</FormLabel>
+                      <div
+                        onClick={() => setActiveField('username')}
+                        className={`flex items-center justify-center gap-2 h-12 rounded-lg cursor-pointer transition-all duration-200 ${
+                          activeField === 'username'
+                            ? 'bg-primary/10 border-2 border-primary shadow-sm'
+                            : 'bg-muted/50 border-2 border-transparent'
+                        }`}
+                      >
+                        <User className={`h-4 w-4 ${activeField === 'username' ? 'text-primary' : 'text-muted-foreground'}`} />
+                        {usernameVal ? (
+                          <span className="text-xl font-bold tracking-wider" dir="ltr">{usernameVal}</span>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">اضغط هنا ثم أدخل رقم الموظف</span>
+                        )}
+                      </div>
                       <FormMessage className="text-center" />
                     </FormItem>
                   )}
                 />
 
+                {/* PIN Field — tappable dots display */}
                 <FormField
                   control={form.control}
                   name="password"
-                  render={({ field }) => (
-                    <FormItem className="space-y-4">
-                      <FormLabel className="text-center block text-muted-foreground">الرمز السري</FormLabel>
-                      <FormControl>
-                        <div className="flex justify-center gap-3 h-10 items-center">
-                          {Array.from({ length: Math.max(5, field.value.length) }).map((_, i) => (
-                            <div 
-                              key={i} 
-                              className={`w-4 h-4 rounded-full transition-all duration-200 ${
-                                i < field.value.length ? 'bg-primary scale-110' : 'bg-muted border border-border'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-center" />
-
-                      {/* iPhone style Pin Pad */}
-                      <div className="grid grid-cols-3 gap-3 pt-4 px-2" dir="ltr">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                          <Button
-                            key={num}
-                            type="button"
-                            variant="outline"
-                            className="h-14 text-2xl rounded-full font-semibold hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
-                            onClick={() => handlePadClick(num.toString())}
-                            disabled={isLoading}
-                          >
-                            {num}
-                          </Button>
-                        ))}
-                        <div />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-14 text-2xl rounded-full font-semibold hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
-                          onClick={() => handlePadClick("0")}
-                          disabled={isLoading}
-                        >
-                          0
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="h-14 rounded-full text-muted-foreground hover:text-destructive transition-colors"
-                          onClick={handleDelete}
-                          disabled={isLoading || field.value.length === 0}
-                        >
-                          <Delete className="h-6 w-6" />
-                        </Button>
+                  render={() => (
+                    <FormItem>
+                      <FormLabel className="text-center block text-muted-foreground text-xs">الرمز السري</FormLabel>
+                      <div
+                        onClick={() => setActiveField('password')}
+                        className={`flex items-center justify-center gap-2 h-12 rounded-lg cursor-pointer transition-all duration-200 ${
+                          activeField === 'password'
+                            ? 'bg-primary/10 border-2 border-primary shadow-sm'
+                            : 'bg-muted/50 border-2 border-transparent'
+                        }`}
+                      >
+                        <Lock className={`h-4 w-4 ${activeField === 'password' ? 'text-primary' : 'text-muted-foreground'}`} />
+                        {passwordVal ? (
+                          <div className="flex gap-2" dir="ltr">
+                            {Array.from({ length: passwordVal.length }).map((_, i) => (
+                              <div key={i} className="w-3.5 h-3.5 rounded-full bg-primary" />
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">اضغط هنا ثم أدخل الرمز السري</span>
+                        )}
                       </div>
+                      <FormMessage className="text-center" />
                     </FormItem>
                   )}
                 />
+
+                {/* Shared numeric pad */}
+                <div className="grid grid-cols-3 gap-3 pt-2 px-2" dir="ltr">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                    <Button
+                      key={num}
+                      type="button"
+                      variant="outline"
+                      className="h-14 text-2xl rounded-full font-semibold hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
+                      onClick={() => handlePadClick(num.toString())}
+                      disabled={isLoading}
+                    >
+                      {num}
+                    </Button>
+                  ))}
+                  <div />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-14 text-2xl rounded-full font-semibold hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
+                    onClick={() => handlePadClick("0")}
+                    disabled={isLoading}
+                  >
+                    0
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-14 rounded-full text-muted-foreground hover:text-destructive transition-colors"
+                    onClick={handleDelete}
+                    disabled={isLoading || (activeField === 'username' && usernameVal.length === 0)}
+                  >
+                    <Delete className="h-6 w-6" />
+                  </Button>
+                </div>
 
                 <div className="flex flex-col gap-3 pt-4">
                   <Button type="submit" className="w-full h-12 text-lg rounded-xl shadow-md" disabled={isLoading}>
