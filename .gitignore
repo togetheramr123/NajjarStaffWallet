@@ -7,3 +7,6 @@ vite.config.ts.*
 .local/
 .config/
 wallet_db_backup.json
+.env
+live_db_backup.json
+cookies*.txt
